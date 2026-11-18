@@ -7,6 +7,15 @@ service cloud.firestore {
       return signedIn() && request.auth.token.email_verified == true
         && request.auth.token.email in ['email-pengurus@gmail.com'];
     }
+    // Profil: username dan email tiap anggota. Hanya pemilik dan pengurus yang boleh membaca.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['username','email'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 2 && request.resource.data.username.size() <= 30;
+      allow delete: if isAdmin();
+    }
     match /checkins/{id} {
       allow read: if signedIn();
       allow create: if signedIn()

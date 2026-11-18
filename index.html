@@ -61,6 +61,7 @@ nav button{flex:1;background:none;border:0;color:#cfe6d6;font:italic 700 19px/1 
 nav button[aria-current=page]{color:var(--y);border-top-color:var(--y)}
 #qr{display:flex;justify-content:center;padding:12px;background:#fff}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;z-index:9;max-width:90%;text-align:center}
+.who{margin:0 0 6px}.who .btn{margin-left:8px}
 @media (prefers-reduced-motion:no-preference){.seal{transition:transform .12s}}
 </style>
 </head>
@@ -85,28 +86,32 @@ let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;
 $('#org').textContent=C.nama;
 
 /* ---------- Penyimpanan: Firebase bila aktif, selain itu mode demo di perangkat ---------- */
-const Store={cloud:!!(C.firebase&&C.firebase.enabled&&C.firebase.projectId),uid:'local',email:'',anon:true};
+const CL=!!(C.firebase&&C.firebase.enabled&&C.firebase.projectId);
+const Store={cloud:CL,uid:CL?'':'local',email:'',name:'',loaded:!CL,ready:!CL};
 let M,db,auth;
 Store.start=async(onRows,onUser)=>{
-  if(!Store.cloud){Store.emit=()=>onRows(JSON.parse(localStorage.kh_rows||'[]').sort((a,b)=>b.ts-a.ts));Store.emit();onUser();return}
+  if(!Store.cloud){Store.emit=()=>onRows(JSON.parse(localStorage.kh_rows||'[]').sort((a,b)=>b.ts-a.ts));Store.emit();Store.name=localStorage.kh_name||'';onUser();return}
   const B='https://www.gstatic.com/firebasejs/10.14.1/';
   const [A,Au,F]=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
-  M={Au,F};const app=A.initializeApp(C.firebase);auth=Au.getAuth(app);db=F.getFirestore(app);let unsub=null;
+  M={Au,F};const app=A.initializeApp(C.firebase);auth=Au.getAuth(app);db=F.getFirestore(app);let u1=null,u2=null;
   Au.onAuthStateChanged(auth,u=>{
-    if(!u){Au.signInAnonymously(auth).catch(()=>toast('Aktifkan Anonymous di Firebase Authentication'));return}
-    Store.uid=u.uid;Store.email=(u.email||'').toLowerCase();Store.anon=u.isAnonymous;onUser();
-    if(unsub)unsub();
-    unsub=F.onSnapshot(F.query(F.collection(db,'checkins'),F.orderBy('ts','desc'),F.limit(800)),
+    if(u1)u1();if(u2)u2();u1=u2=null;Store.ready=true;Store.loaded=false;Store.name='';
+    if(!u){Store.uid='';Store.email='';rows=[];onUser();return}
+    Store.uid=u.uid;Store.email=(u.email||'').toLowerCase();onUser();
+    u2=F.onSnapshot(F.doc(db,'users',u.uid),s=>{Store.name=s.exists()?s.data().username:'';Store.loaded=true;onUser()},e=>toast('Gagal membaca profil ('+e.code+')'));
+    u1=F.onSnapshot(F.query(F.collection(db,'checkins'),F.orderBy('ts','desc'),F.limit(800)),
       s=>onRows(s.docs.map(d=>Object.assign({id:d.id},d.data()))),e=>toast('Gagal membaca data ('+e.code+')'));
   });
 };
+Store.setName=async n=>{if(!Store.cloud){localStorage.kh_name=n;Store.name=n;return}await M.F.setDoc(M.F.doc(db,'users',Store.uid),{username:n,email:Store.email})};
+Store.users=async()=>{if(!Store.cloud)return{};const o={};(await M.F.getDocs(M.F.collection(db,'users'))).forEach(d=>{o[d.id]=d.data().email||''});return o};
 const local=f=>{const a=JSON.parse(localStorage.kh_rows||'[]');f(a);localStorage.kh_rows=JSON.stringify(a);Store.emit()};
 Store.add=async r=>Store.cloud?M.F.addDoc(M.F.collection(db,'checkins'),Object.assign({},r,{uid:Store.uid})):local(a=>a.push(Object.assign({},r,{id:'l'+Date.now(),uid:'local'})));
 Store.out=async id=>Store.cloud?M.F.updateDoc(M.F.doc(db,'checkins',id),{out:Date.now()}):local(a=>{const r=a.find(x=>x.id===id);if(r)r.out=Date.now()});
 Store.del=async id=>Store.cloud?M.F.deleteDoc(M.F.doc(db,'checkins',id)):local(a=>{a.splice(a.findIndex(x=>x.id===id),1)});
 Store.google=()=>{const p=new M.Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return M.Au.signInWithPopup(auth,p)};
 Store.exit=()=>M.Au.signOut(auth);
-const isAdmin=()=>!Store.cloud||(!Store.anon&&(C.adminEmails||[]).map(x=>x.toLowerCase()).includes(Store.email));
+const isAdmin=()=>!Store.cloud||(C.adminEmails||[]).map(x=>x.toLowerCase()).includes(Store.email);
 
 /* ---------- Status ---------- */
 let tab='hadir',rows=[],pos=null,geoErr='',viewDay=dk(new Date()),act='',chosen='';
@@ -114,7 +119,7 @@ const qrOk=!!C.qrToken&&new URLSearchParams(location.search).get('qr')===C.qrTok
 const dist=(a,b)=>{const R=6371000,r=Math.PI/180,x=(b.lat-a.lat)*r,y=(b.lng-a.lng)*r;
   const h=Math.sin(x/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const inRange=()=>pos&&dist(pos,C.lokasi)<=C.lokasi.radius;
-const getName=()=>{const s=$('#nm');return !s?'':(s.value==='__x'?$('#nm2').value.trim():s.value)};
+const getName=()=>Store.name;
 const getAct=()=>($('#ak')&&$('#ak').value.trim())||chosen;
 
 if(navigator.geolocation)navigator.geolocation.watchPosition(
@@ -124,24 +129,19 @@ if(navigator.geolocation)navigator.geolocation.watchPosition(
 else geoErr='Browser ini tidak mendukung GPS.';
 
 /* ---------- Tampilan ---------- */
-const TABS=[['hadir','Hadir'],['rank','Peringkat'],['rekap','Rekap'],['urus','Pengurus']];
+const TABS=[['hadir','Hadir'],['rank','Peringkat'],['rekap','Rekap'],['urus','Akun']];
 function nav(){$('#nav').innerHTML=TABS.map(t=>`<button data-t="${t[0]}"${t[0]===tab?' aria-current="page"':''}>${t[1]}</button>`).join('')}
 $('#nav').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;shell();paint();window.scrollTo(0,0)}};
 
 function shell(){
   nav();const v=$('#v');
   if(tab==='hadir'){
-    const saved=localStorage.kh_name||'';
-    v.innerHTML=`<section class="card"><label for="nm">Nama</label>
-    <select id="nm"><option value="">Pilih namamu</option>${C.anggota.map(n=>`<option${n===saved?' selected':''}>${esc(n)}</option>`).join('')}<option value="__x">Nama lain…</option></select>
-    <input type="text" id="nm2" placeholder="Tulis namamu" maxlength="60" hidden>
-    <label>Lagi ngapain?</label><div class="chips" id="ch">${C.kegiatan.map(k=>`<button class="chip" type="button" aria-pressed="false">${esc(k)}</button>`).join('')}</div>
+    v.innerHTML=`<section class="card"><p class="who">Hadir sebagai <b>${esc(Store.name)}</b> <button class="btn sec sm" id="rn" type="button">Ganti</button></p><label>Lagi ngapain?</label><div class="chips" id="ch">${C.kegiatan.map(k=>`<button class="chip" type="button" aria-pressed="false">${esc(k)}</button>`).join('')}</div>
     <input type="text" id="ak" placeholder="Atau tulis kegiatan lain" maxlength="80">
     <input type="text" id="nt" placeholder="Catatan singkat (boleh kosong)" maxlength="200" style="margin-bottom:0"></section>
     <section class="seal-wrap" id="seal"></section>
     <section class="card"><h2>Siapa di sini</h2><div id="live"></div></section>`;
-    $('#nm').onchange=()=>{$('#nm2').hidden=$('#nm').value!=='__x';paintSeal()};
-    $('#nm2').oninput=paintSeal;
+    $('#rn').onclick=()=>{renaming=true;gated=null;route()};
     $('#ch').onclick=e=>{const b=e.target.closest('.chip');if(!b)return;const on=b.getAttribute('aria-pressed')==='true';
       document.querySelectorAll('#ch .chip').forEach(x=>x.setAttribute('aria-pressed','false'));
       b.setAttribute('aria-pressed',String(!on));chosen=on?'':b.textContent;$('#ak').value=''};
@@ -157,13 +157,13 @@ function shell(){
   }else{
     v.innerHTML=`<div id="ad"></div>`;
     $('#ad').onclick=async e=>{const id=e.target.id;
-      try{if(id==='gl')await Store.google();else if(id==='ex')await Store.exit();else if(id==='csv')csv();else if(id==='qb')qr()}catch(er){toast('Gagal: '+(er.code||er.message))}};
+      try{if(id==='ex')await Store.exit();else if(id==='rn2'){renaming=true;gated=null;route()}else if(id==='csv')await csv();else if(id==='qb')qr()}catch(er){toast('Gagal: '+(er.code||er.message))}};
   }
 }
 
 function paintSeal(){
   const el=$('#seal');if(!el)return;
-  const name=getName(),t=dk(new Date()),mine=rows.find(r=>r.day===t&&r.name===name);
+  const t=dk(new Date()),mine=rows.find(r=>r.day===t&&r.uid===Store.uid);
   const ok=inRange()||qrOk,L=C.lokasi;
   let g=qrOk&&!inRange()?'Masuk lewat <b>QR Code</b> lokasi.':pos?`Kamu <b>${Math.round(dist(pos,L))} m</b> dari ${esc(L.nama)} (batas ${L.radius} m, akurasi ±${Math.round(pos.acc)} m).`:esc(geoErr)||'Mencari lokasi…';
   const mt='<svg viewBox="0 0 100 70" aria-hidden="true"><polygon points="8,70 50,6 92,70" fill="#103080"/><polygon points="8,70 50,6 58,44 36,70" fill="#00a0e0"/><rect y="62" width="100" height="8" fill="#007a33"/></svg>';
@@ -181,17 +181,17 @@ async function go(){
   if(!name)return toast('Pilih atau tulis namamu dulu');
   if(!a)return toast('Pilih atau tulis kegiatanmu dulu');
   try{await Store.add({name,activity:a,note:$('#nt').value.trim(),day:dk(new Date()),ts:Date.now(),method:inRange()?'gps':'qr',dist:pos?Math.round(dist(pos,C.lokasi)):null,out:null});
-    localStorage.kh_name=name;toast('Kehadiran tercatat. Selamat berkegiatan!')}catch(e){toast('Gagal menyimpan ('+(e.code||e.message)+')')}
+    toast('Kehadiran tercatat. Selamat berkegiatan!')}catch(e){toast('Gagal menyimpan ('+(e.code||e.message)+')')}
 }
-function bye(){const t=dk(new Date()),r=rows.find(x=>x.day===t&&x.name===getName()&&!x.out&&x.uid===Store.uid);
+function bye(){const t=dk(new Date()),r=rows.find(x=>x.day===t&&x.uid===Store.uid&&!x.out);
   if(r)Store.out(r.id).then(()=>toast('Sampai jumpa!')).catch(e=>toast('Gagal: '+e.code));else toast('Hanya perangkat yang dipakai masuk yang bisa mencatat pulang')}
 
 function board(){
-  const m={};rows.forEach(r=>{(m[r.name]=m[r.name]||new Set()).add(r.day)});
+  const m={},nm={};rows.slice().sort((a,b)=>a.ts-b.ts).forEach(r=>{nm[r.uid]=r.name;(m[r.uid]=m[r.uid]||new Set()).add(r.day)});
   const today=new Date();
   return Object.keys(m).map(n=>{const s=m[n];let st=0,d=new Date(today);if(!s.has(dk(d)))d.setDate(d.getDate()-1);
     while(s.has(dk(d))){st++;d.setDate(d.getDate()-1)}
-    return{n,days:s.size,st,p:s.size*10+st*2}}).sort((a,b)=>b.p-a.p||b.days-a.days);
+    return{n:nm[n],days:s.size,st,p:s.size*10+st*2}}).sort((a,b)=>b.p-a.p||b.days-a.days);
 }
 function paint(){
   if(tab==='hadir')paintSeal();
@@ -206,15 +206,14 @@ function paint(){
 function paintAdmin(){
   const L=C.lokasi;let h='';
   if(!Store.cloud)h+='<div class="note">Mode demo: data hanya tersimpan di perangkat ini. Isi Firebase di <b>config.js</b> agar semua anggota berbagi data.</div>';
-  h+=`<section class="card"><h2>Pengurus</h2><p class="empty">Lokasi: ${esc(L.nama)}, radius ${L.radius} m. Ubah di <b>config.js</b>.</p>`;
-  if(!isAdmin())h+=`<p>Masuk dengan akun Google pengurus untuk mengunduh rekap, menghapus catatan, dan menampilkan QR Code.</p><button class="btn" id="gl">Masuk dengan Google</button>`;
-  else h+=`<p><button class="btn" id="csv">Unduh rekap (Excel/CSV)</button></p><p><button class="btn sec" id="qb">Tampilkan QR Code lokasi</button></p><div id="qr" hidden></div>${Store.cloud?'<p><button class="btn sec sm" id="ex">Keluar</button></p>':''}`;
-  $('#ad').innerHTML=h+'</section>';
+  h+=`<section class="card"><h2>Akun</h2><p>Masuk sebagai <b>${esc(Store.name)}</b>${Store.email?' ('+esc(Store.email)+')':''}.</p><p><button class="btn sec sm" id="rn2">Ganti username</button>${Store.cloud?' <button class="btn sec sm" id="ex">Keluar</button>':''}</p></section>`;
+  if(isAdmin())h+=`<section class="card"><h2>Pengurus</h2><p class="empty">Lokasi: ${esc(L.nama)}, radius ${L.radius} m. Ubah di <b>config.js</b>.</p><p><button class="btn" id="csv">Unduh rekap (Excel/CSV)</button></p><p><button class="btn sec" id="qb">Tampilkan QR Code lokasi</button></p><div id="qr" hidden></div></section>`;
+  $('#ad').innerHTML=h;
 }
-function csv(){
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  const out=['Tanggal,Jam masuk,Jam pulang,Nama,Kegiatan,Catatan,Metode,Jarak (m)'];
-  rows.slice().sort((a,b)=>a.ts-b.ts).forEach(r=>out.push([r.day,hm(r.ts),r.out?hm(r.out):'',r.name,r.activity,r.note,r.method,r.dist].map(q).join(',')));
+async function csv(){
+  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"',em=await Store.users();
+  const out=['Tanggal,Jam masuk,Jam pulang,Username,Email,Kegiatan,Catatan,Metode,Jarak (m)'];
+  rows.slice().sort((a,b)=>a.ts-b.ts).forEach(r=>out.push([r.day,hm(r.ts),r.out?hm(r.out):'',r.name,em[r.uid]||'',r.activity,r.note,r.method,r.dist].map(q).join(',')));
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+out.join('\r\n')],{type:'text/csv;charset=utf-8'}));
   a.download='rekap-kehadiran-'+dk(new Date())+'.csv';a.click();
 }
@@ -225,8 +224,40 @@ function qr(){
   const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=draw;s.onerror=()=>toast('QR gagal dimuat. Periksa koneksi.');document.head.appendChild(s);
 }
 
-shell();
-Store.start(r=>{rows=r;paint()},()=>{if(tab==='urus')paint()}).catch(e=>toast('Firebase gagal dimulai: '+e.message));
+let gated=null,renaming=false;
+function gate(){
+  if(Store.cloud&&(!Store.ready||(Store.uid&&!Store.loaded)))return'load';
+  if(Store.cloud&&!Store.uid)return'login';
+  return(!Store.name||renaming)?'name':null;
+}
+function showGate(g){
+  const h={load:'<section class="card"><p class="empty">Memuat akun…</p></section>',
+  login:'<section class="card"><h2>Masuk dulu</h2><p>Masuk dengan akun Gmail kamu untuk mengisi kehadiran.</p><button class="btn" id="gl">Masuk dengan Google</button></section>',
+  name:`<section class="card"><h2>${Store.name?'Ganti username':'Pilih username'}</h2><p>Nama ini yang tampil di daftar hadir dan peringkat.</p><input type="text" id="un" maxlength="30" placeholder="Username" value="${esc(Store.name)}"><button class="btn" id="sv">Simpan username</button>${Store.name?' <button class="btn sec" id="cn">Batal</button>':''}${Store.cloud?' <button class="btn sec" id="ex2">Ganti akun</button>':''}</section>`};
+  $('#v').innerHTML=h[g];
+}
+function route(){
+  const g=gate();document.querySelector('nav').hidden=!!g;
+  if(g){if(g!==gated){gated=g;showGate(g)}return}
+  if(gated||!$('#v').children.length){gated=null;shell()}
+  paint();
+}
+$('#v').addEventListener('click',async e=>{
+  const id=e.target.id;
+  try{
+    if(id==='gl')await Store.google();
+    else if(id==='ex2'){renaming=false;await Store.exit()}
+    else if(id==='cn'){renaming=false;gated=null;route()}
+    else if(id==='sv'){
+      const n=$('#un').value.trim().replace(/\s+/g,' ');
+      if(n.length<2)return toast('Username minimal 2 huruf');
+      if(rows.some(r=>r.uid!==Store.uid&&r.name.toLowerCase()===n.toLowerCase()))return toast('Username itu sudah dipakai, coba yang lain');
+      await Store.setName(n);renaming=false;toast('Username tersimpan');route();
+    }
+  }catch(er){toast('Gagal: '+(er.code||er.message))}
+});
+Store.start(r=>{rows=r;if(!gate())paint()},route).catch(e=>toast('Firebase gagal dimulai: '+e.message));
+route();
 setInterval(paintLive,60000);
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
