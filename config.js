@@ -1,6 +1,6 @@
 window.KEHADIRAN = {
   nama: "Yayasan Al-Kahfi",
-  lokasi: { nama: "Sekre Polowijen", lat: -7.932497637784255, lng: 112.6397824588299, radius: 50 },
+  lokasi: { nama: "Polowijen", lat: -7.932497637784255, lng: 112.6397824588299, radius: 50 },
   kegiatan: ["Nongkrong / diskusi", "Persiapan acara", "Rapat", "Eksekusi proyek"],
   qrToken: "",
   adminEmails: ["getramaz@gmail.com"],
