@@ -1,33 +1,58 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    // Ganti dengan email pengurus (huruf kecil)
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // GANTI dengan email Google pengurus (huruf kecil). Boleh lebih dari satu: ['a@gmail.com', 'b@gmail.com']
+    // Harus sama dengan adminEmails di js/config.js
     function isAdmin() {
-      return signedIn() && request.auth.token.email_verified == true
-        && request.auth.token.email in ['email-pengurus@gmail.com'];
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['getramaz@gmail.com'];
     }
-    // Profil: username dan email tiap anggota. Hanya pemilik dan pengurus yang boleh membaca.
-    match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['username','email'])
-        && request.resource.data.username is string
-        && request.resource.data.username.size() >= 2 && request.resource.data.username.size() <= 30;
-      allow delete: if isAdmin();
+
+    // Pengaturan lokasi, radius, QR, poin. Semua anggota membaca, hanya pengurus menulis.
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
     }
+
+    // Daftar nama anggota. Semua membaca, hanya pengurus mengubah.
+    match /members/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Satu dokumen per anggota per hari, id = "YYYY-MM-DD_idAnggota".
     match /checkins/{id} {
       allow read: if signedIn();
+
       allow create: if signedIn()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['name','activity','note','day','ts','uid','method','dist','out'])
-        && request.resource.data.name is string && request.resource.data.name.size() <= 60
-        && request.resource.data.activity is string && request.resource.data.activity.size() <= 80
-        && request.resource.data.note is string && request.resource.data.note.size() <= 200
-        && request.resource.data.ts is number;
-      // Pemilik hanya boleh mengisi jam pulang
-      allow update: if signedIn() && resource.data.uid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['out']);
+        && request.resource.data.keys().hasOnly(['tanggal', 'memberId', 'nama', 'aktivitas', 'catatan', 'masuk', 'keluar', 'metode', 'jarak', 'riwayat'])
+        && request.resource.data.tanggal is string && request.resource.data.tanggal.size() == 10
+        && request.resource.data.memberId is string && request.resource.data.memberId.size() < 40
+        && id == request.resource.data.tanggal + '_' + request.resource.data.memberId
+        && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+        && request.resource.data.nama is string && request.resource.data.nama.size() < 80
+        && request.resource.data.aktivitas is string && request.resource.data.aktivitas.size() < 80
+        && request.resource.data.catatan is string && request.resource.data.catatan.size() <= 300
+        && request.resource.data.masuk is number
+        && request.resource.data.keluar == null
+        && request.resource.data.metode in ['gps', 'qr']
+        && request.resource.data.riwayat is list && request.resource.data.riwayat.size() <= 40;
+
+      // Yang boleh berubah hanya kegiatan, catatan, jam pulang, dan riwayat kegiatan.
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aktivitas', 'catatan', 'keluar', 'riwayat'])
+        && request.resource.data.aktivitas is string && request.resource.data.aktivitas.size() < 80
+        && request.resource.data.catatan is string && request.resource.data.catatan.size() <= 300
+        && (request.resource.data.keluar == null || request.resource.data.keluar is number)
+        && request.resource.data.riwayat is list && request.resource.data.riwayat.size() <= 40;
+
+      // Koreksi data salah: hanya pengurus.
       allow delete: if isAdmin();
     }
   }
