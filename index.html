@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tanda Kehadiran</title>
+<meta name="theme-color" content="#007a33">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,700;1,800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--g:#007a33;--gd:#005c26;--b:#103080;--s:#00a0e0;--y:#f4de1c;--bg:#f3f8f0;--card:#fff;--ink:#10281c;--mut:#4c6455;--line:#d5e3d3;--bad:#b3261e;
+--hd:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--tx:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--tx);padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+.top{background:var(--g);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) 18px 46px;position:relative;overflow:hidden}
+.top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+.top img{width:56px;height:56px;border-radius:50%;border:3px solid #fff;background:#fff}
+h1{font:italic 800 34px/1 var(--hd);margin:0;text-transform:uppercase;letter-spacing:.5px}
+.top p{margin:2px 0 0;color:var(--y);font:italic 700 18px/1 var(--hd);letter-spacing:.5px}
+.mt{position:absolute;right:-10px;bottom:-2px;width:300px;max-width:70%;height:auto}
+main{max-width:720px;margin:-26px auto 0;padding:0 14px;position:relative}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+h2{font:italic 800 24px/1.1 var(--hd);margin:0 0 10px;color:var(--b)}
+label{display:block;font-weight:600;margin:10px 0 6px}label:first-child{margin-top:0}
+select,input[type=text],input[type=date]{width:100%;font:inherit;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);margin-bottom:8px}
+select:focus,input:focus,button:focus-visible,.chip:focus-visible{outline:3px solid var(--s);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{border:1.5px solid var(--g);background:#fff;color:var(--gd);border-radius:999px;padding:7px 14px;font:inherit;font-weight:600;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--g);color:#fff}
+.seal-wrap{text-align:center;margin:6px 0 20px}
+.seal{width:210px;height:210px;border-radius:50%;border:12px solid var(--g);background:#fff;padding:0;cursor:pointer;position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:hidden;box-shadow:0 0 0 4px #fff,0 0 0 6px var(--g)}
+.seal svg{position:absolute;left:0;top:18px;width:100%}
+.seal span{position:relative;z-index:1;background:var(--y);color:var(--ink);font:italic 800 22px/1 var(--hd);padding:8px 16px;border-radius:8px 8px 0 0;margin-bottom:0;width:100%;text-transform:uppercase;letter-spacing:.5px}
+.seal:disabled{border-color:#9aa8a0;box-shadow:0 0 0 4px #fff,0 0 0 6px #9aa8a0;cursor:not-allowed}
+.seal:disabled svg{filter:grayscale(1);opacity:.55}.seal:disabled span{background:#e3e8e4;color:var(--mut)}
+.seal.ok:not(:disabled):active{transform:scale(.97)}
+.geo{margin:12px 0 0;color:var(--mut);font-size:15px}
+.geo b{color:var(--ink)}
+.btn{font:inherit;font-weight:600;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;background:var(--b);color:#fff}
+.btn.sec{background:#fff;color:var(--b);border:1.5px solid var(--b)}.btn.sm{padding:6px 12px;font-size:14px}
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.av{flex:none;width:38px;height:38px;border-radius:50%;background:var(--g);color:#fff;font:italic 800 20px/38px var(--hd);text-align:center}
+.row .m{flex:1;min-width:0}.row .m b{display:block}.row .m small{color:var(--mut);display:block;overflow-wrap:anywhere}
+.row time,.pts{font-weight:600;color:var(--gd);white-space:nowrap}
+.rk{flex:none;width:34px;height:34px;border-radius:50%;background:var(--bg);border:2px solid var(--line);font:italic 800 19px/30px var(--hd);text-align:center;color:var(--b)}
+.rk.t{background:var(--y);border-color:var(--y);color:var(--ink)}
+.empty{color:var(--mut);margin:4px 0}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px}
+.days .chip{flex:none;font-size:14px}
+.note{background:#fff8c9;border:1px solid #e6d65a;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:15px}
+.x{background:none;border:0;color:var(--bad);font-size:20px;cursor:pointer;padding:4px 8px}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--gd);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav div{display:flex;width:100%;max-width:720px}
+nav button{flex:1;background:none;border:0;color:#cfe6d6;font:italic 700 19px/1 var(--hd);padding:18px 4px 16px;cursor:pointer;border-top:4px solid transparent}
+nav button[aria-current=page]{color:var(--y);border-top-color:var(--y)}
+#qr{display:flex;justify-content:center;padding:12px;background:#fff}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;z-index:9;max-width:90%;text-align:center}
+@media (prefers-reduced-motion:no-preference){.seal{transition:transform .12s}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="in"><img src="logo.jpg" alt="Logo"><div><h1>Tanda Kehadiran</h1><p id="org"></p></div></div>
+  <svg class="mt" viewBox="0 0 300 120" aria-hidden="true"><polygon points="20,120 150,10 280,120" fill="#103080"/><polygon points="20,120 150,10 175,70 120,120" fill="#00a0e0"/></svg>
+</header>
+<main id="v"></main>
+<nav><div id="nav"></div></nav>
+<div id="toast" role="status" hidden></div>
+<script src="config.js"></script>
+<script>
+'use strict';
+const C=window.KEHADIRAN,$=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,'0');
+const dk=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const hm=ms=>new Date(ms).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nice=k=>new Date(k+'T00:00').toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'});
+let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>e.hidden=true,3200)}
+$('#org').textContent=C.nama;
+
+/* ---------- Penyimpanan: Firebase bila aktif, selain itu mode demo di perangkat ---------- */
+const Store={cloud:!!(C.firebase&&C.firebase.enabled&&C.firebase.projectId),uid:'local',email:'',anon:true};
+let M,db,auth;
+Store.start=async(onRows,onUser)=>{
+  if(!Store.cloud){Store.emit=()=>onRows(JSON.parse(localStorage.kh_rows||'[]').sort((a,b)=>b.ts-a.ts));Store.emit();onUser();return}
+  const B='https://www.gstatic.com/firebasejs/10.14.1/';
+  const [A,Au,F]=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
+  M={Au,F};const app=A.initializeApp(C.firebase);auth=Au.getAuth(app);db=F.getFirestore(app);let unsub=null;
+  Au.onAuthStateChanged(auth,u=>{
+    if(!u){Au.signInAnonymously(auth).catch(()=>toast('Aktifkan Anonymous di Firebase Authentication'));return}
+    Store.uid=u.uid;Store.email=(u.email||'').toLowerCase();Store.anon=u.isAnonymous;onUser();
+    if(unsub)unsub();
+    unsub=F.onSnapshot(F.query(F.collection(db,'checkins'),F.orderBy('ts','desc'),F.limit(800)),
+      s=>onRows(s.docs.map(d=>Object.assign({id:d.id},d.data()))),e=>toast('Gagal membaca data ('+e.code+')'));
+  });
+};
+const local=f=>{const a=JSON.parse(localStorage.kh_rows||'[]');f(a);localStorage.kh_rows=JSON.stringify(a);Store.emit()};
+Store.add=async r=>Store.cloud?M.F.addDoc(M.F.collection(db,'checkins'),Object.assign({},r,{uid:Store.uid})):local(a=>a.push(Object.assign({},r,{id:'l'+Date.now(),uid:'local'})));
+Store.out=async id=>Store.cloud?M.F.updateDoc(M.F.doc(db,'checkins',id),{out:Date.now()}):local(a=>{const r=a.find(x=>x.id===id);if(r)r.out=Date.now()});
+Store.del=async id=>Store.cloud?M.F.deleteDoc(M.F.doc(db,'checkins',id)):local(a=>{a.splice(a.findIndex(x=>x.id===id),1)});
+Store.google=()=>{const p=new M.Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return M.Au.signInWithPopup(auth,p)};
+Store.exit=()=>M.Au.signOut(auth);
+const isAdmin=()=>!Store.cloud||(!Store.anon&&(C.adminEmails||[]).map(x=>x.toLowerCase()).includes(Store.email));
+
+/* ---------- Status ---------- */
+let tab='hadir',rows=[],pos=null,geoErr='',viewDay=dk(new Date()),act='',chosen='';
+const qrOk=!!C.qrToken&&new URLSearchParams(location.search).get('qr')===C.qrToken;
+const dist=(a,b)=>{const R=6371000,r=Math.PI/180,x=(b.lat-a.lat)*r,y=(b.lng-a.lng)*r;
+  const h=Math.sin(x/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const inRange=()=>pos&&dist(pos,C.lokasi)<=C.lokasi.radius;
+const getName=()=>{const s=$('#nm');return !s?'':(s.value==='__x'?$('#nm2').value.trim():s.value)};
+const getAct=()=>($('#ak')&&$('#ak').value.trim())||chosen;
+
+if(navigator.geolocation)navigator.geolocation.watchPosition(
+  p=>{pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};geoErr='';paintSeal()},
+  e=>{geoErr=e.code===1?'Izin lokasi ditolak. Aktifkan lokasi untuk situs ini di pengaturan browser.':'Lokasi belum terbaca. Coba keluar ke tempat terbuka.';paintSeal()},
+  {enableHighAccuracy:true,maximumAge:5000,timeout:25000});
+else geoErr='Browser ini tidak mendukung GPS.';
+
+/* ---------- Tampilan ---------- */
+const TABS=[['hadir','Hadir'],['rank','Peringkat'],['rekap','Rekap'],['urus','Pengurus']];
+function nav(){$('#nav').innerHTML=TABS.map(t=>`<button data-t="${t[0]}"${t[0]===tab?' aria-current="page"':''}>${t[1]}</button>`).join('')}
+$('#nav').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;shell();paint();window.scrollTo(0,0)}};
+
+function shell(){
+  nav();const v=$('#v');
+  if(tab==='hadir'){
+    const saved=localStorage.kh_name||'';
+    v.innerHTML=`<section class="card"><label for="nm">Nama</label>
+    <select id="nm"><option value="">Pilih namamu</option>${C.anggota.map(n=>`<option${n===saved?' selected':''}>${esc(n)}</option>`).join('')}<option value="__x">Nama lain…</option></select>
+    <input type="text" id="nm2" placeholder="Tulis namamu" maxlength="60" hidden>
+    <label>Lagi ngapain?</label><div class="chips" id="ch">${C.kegiatan.map(k=>`<button class="chip" type="button" aria-pressed="false">${esc(k)}</button>`).join('')}</div>
+    <input type="text" id="ak" placeholder="Atau tulis kegiatan lain" maxlength="80">
+    <input type="text" id="nt" placeholder="Catatan singkat (boleh kosong)" maxlength="200" style="margin-bottom:0"></section>
+    <section class="seal-wrap" id="seal"></section>
+    <section class="card"><h2>Siapa di sini</h2><div id="live"></div></section>`;
+    $('#nm').onchange=()=>{$('#nm2').hidden=$('#nm').value!=='__x';paintSeal()};
+    $('#nm2').oninput=paintSeal;
+    $('#ch').onclick=e=>{const b=e.target.closest('.chip');if(!b)return;const on=b.getAttribute('aria-pressed')==='true';
+      document.querySelectorAll('#ch .chip').forEach(x=>x.setAttribute('aria-pressed','false'));
+      b.setAttribute('aria-pressed',String(!on));chosen=on?'':b.textContent;$('#ak').value=''};
+    $('#ak').oninput=()=>{if($('#ak').value){chosen='';document.querySelectorAll('#ch .chip').forEach(x=>x.setAttribute('aria-pressed','false'))}};
+    $('#seal').onclick=e=>{if(e.target.closest('#go'))go();if(e.target.closest('#bye'))bye()};
+    $('#live').onclick=e=>{const b=e.target.closest('[data-out]');if(b)Store.out(b.dataset.out).then(()=>toast('Sampai jumpa!')).catch(er=>toast('Gagal: '+er.code))};
+  }else if(tab==='rank')v.innerHTML=`<section class="card"><h2>Peringkat kehadiran</h2><p class="empty">10 poin tiap hari hadir, tambah 2 poin untuk setiap hari berturut-turut yang sedang berjalan.</p><div id="lb"></div></section>`;
+  else if(tab==='rekap'){
+    v.innerHTML=`<section class="card"><h2>Rekap kehadiran</h2><div class="days" id="dd"></div><input type="date" id="dp" value="${viewDay}"><div id="rk"></div></section>`;
+    $('#dp').onchange=()=>{viewDay=$('#dp').value||viewDay;paint()};
+    $('#dd').onclick=e=>{const b=e.target.closest('[data-d]');if(b){viewDay=b.dataset.d;$('#dp').value=viewDay;paint()}};
+    $('#rk').onclick=e=>{const b=e.target.closest('[data-del]');if(b&&confirm('Hapus catatan ini?'))Store.del(b.dataset.del).catch(er=>toast('Gagal: '+er.code))};
+  }else{
+    v.innerHTML=`<div id="ad"></div>`;
+    $('#ad').onclick=async e=>{const id=e.target.id;
+      try{if(id==='gl')await Store.google();else if(id==='ex')await Store.exit();else if(id==='csv')csv();else if(id==='qb')qr()}catch(er){toast('Gagal: '+(er.code||er.message))}};
+  }
+}
+
+function paintSeal(){
+  const el=$('#seal');if(!el)return;
+  const name=getName(),t=dk(new Date()),mine=rows.find(r=>r.day===t&&r.name===name);
+  const ok=inRange()||qrOk,L=C.lokasi;
+  let g=qrOk&&!inRange()?'Masuk lewat <b>QR Code</b> lokasi.':pos?`Kamu <b>${Math.round(dist(pos,L))} m</b> dari ${esc(L.nama)} (batas ${L.radius} m, akurasi ±${Math.round(pos.acc)} m).`:esc(geoErr)||'Mencari lokasi…';
+  const mt='<svg viewBox="0 0 100 70" aria-hidden="true"><polygon points="8,70 50,6 92,70" fill="#103080"/><polygon points="8,70 50,6 58,44 36,70" fill="#00a0e0"/><rect y="62" width="100" height="8" fill="#007a33"/></svg>';
+  if(mine)el.innerHTML=`<button class="seal ok" disabled>${mt}<span>Sudah hadir ${hm(mine.ts)}</span></button><p class="geo">${mine.out?'Pulang '+hm(mine.out):'<button class="btn sec sm" id="bye">Catat pulang</button>'}</p>`;
+  else el.innerHTML=`<button class="seal ok" id="go" ${ok?'':'disabled'}>${mt}<span>${ok?'Isi kehadiran':'Belum di lokasi'}</span></button><p class="geo">${g}</p>`;
+  paintLive();
+}
+function paintLive(){
+  const el=$('#live');if(!el)return;const t=dk(new Date()),now=Date.now();
+  const L=rows.filter(r=>r.day===t&&!r.out&&now-r.ts<14*36e5).sort((a,b)=>a.ts-b.ts);
+  el.innerHTML=L.length?L.map(r=>`<div class="row"><div class="av">${esc(r.name.trim()[0]||'?').toUpperCase()}</div><div class="m"><b>${esc(r.name)}</b><small>${esc(r.activity)}${r.note?' · '+esc(r.note):''}</small></div><time>${hm(r.ts)}</time></div>`).join(''):'<p class="empty">Belum ada yang tercatat hadir. Jadilah yang pertama.</p>';
+}
+async function go(){
+  const name=getName(),a=getAct();
+  if(!name)return toast('Pilih atau tulis namamu dulu');
+  if(!a)return toast('Pilih atau tulis kegiatanmu dulu');
+  try{await Store.add({name,activity:a,note:$('#nt').value.trim(),day:dk(new Date()),ts:Date.now(),method:inRange()?'gps':'qr',dist:pos?Math.round(dist(pos,C.lokasi)):null,out:null});
+    localStorage.kh_name=name;toast('Kehadiran tercatat. Selamat berkegiatan!')}catch(e){toast('Gagal menyimpan ('+(e.code||e.message)+')')}
+}
+function bye(){const t=dk(new Date()),r=rows.find(x=>x.day===t&&x.name===getName()&&!x.out&&x.uid===Store.uid);
+  if(r)Store.out(r.id).then(()=>toast('Sampai jumpa!')).catch(e=>toast('Gagal: '+e.code));else toast('Hanya perangkat yang dipakai masuk yang bisa mencatat pulang')}
+
+function board(){
+  const m={};rows.forEach(r=>{(m[r.name]=m[r.name]||new Set()).add(r.day)});
+  const today=new Date();
+  return Object.keys(m).map(n=>{const s=m[n];let st=0,d=new Date(today);if(!s.has(dk(d)))d.setDate(d.getDate()-1);
+    while(s.has(dk(d))){st++;d.setDate(d.getDate()-1)}
+    return{n,days:s.size,st,p:s.size*10+st*2}}).sort((a,b)=>b.p-a.p||b.days-a.days);
+}
+function paint(){
+  if(tab==='hadir')paintSeal();
+  else if(tab==='rank'){const b=board();$('#lb').innerHTML=b.length?b.map((x,i)=>`<div class="row"><div class="rk${i<3?' t':''}">${i+1}</div><div class="m"><b>${esc(x.n)}</b><small>${x.days} hari hadir${x.st>1?' · streak '+x.st+' hari':''}</small></div><span class="pts">${x.p} poin</span></div>`).join(''):'<p class="empty">Peringkat muncul setelah ada yang mengisi kehadiran.</p>'}
+  else if(tab==='rekap'){
+    const cnt={};rows.forEach(r=>{cnt[r.day]=(cnt[r.day]||0)+1});
+    $('#dd').innerHTML=Object.keys(cnt).sort().reverse().slice(0,14).map(d=>`<button class="chip" data-d="${d}" aria-pressed="${d===viewDay}">${nice(d)} · ${cnt[d]}</button>`).join('');
+    const L=rows.filter(r=>r.day===viewDay).sort((a,b)=>a.ts-b.ts),adm=isAdmin();
+    $('#rk').innerHTML=L.length?`<p class="empty">${L.length} catatan pada ${nice(viewDay)}</p>`+L.map(r=>`<div class="row"><div class="av">${esc(r.name.trim()[0]||'?').toUpperCase()}</div><div class="m"><b>${esc(r.name)}</b><small>${esc(r.activity)}${r.note?' · '+esc(r.note):''}</small></div><time>${hm(r.ts)}${r.out?'–'+hm(r.out):''}</time>${adm?`<button class="x" data-del="${r.id}" aria-label="Hapus">×</button>`:''}</div>`).join(''):'<p class="empty">Tidak ada kehadiran pada tanggal ini.</p>';
+  }else paintAdmin();
+}
+function paintAdmin(){
+  const L=C.lokasi;let h='';
+  if(!Store.cloud)h+='<div class="note">Mode demo: data hanya tersimpan di perangkat ini. Isi Firebase di <b>config.js</b> agar semua anggota berbagi data.</div>';
+  h+=`<section class="card"><h2>Pengurus</h2><p class="empty">Lokasi: ${esc(L.nama)}, radius ${L.radius} m. Ubah di <b>config.js</b>.</p>`;
+  if(!isAdmin())h+=`<p>Masuk dengan akun Google pengurus untuk mengunduh rekap, menghapus catatan, dan menampilkan QR Code.</p><button class="btn" id="gl">Masuk dengan Google</button>`;
+  else h+=`<p><button class="btn" id="csv">Unduh rekap (Excel/CSV)</button></p><p><button class="btn sec" id="qb">Tampilkan QR Code lokasi</button></p><div id="qr" hidden></div>${Store.cloud?'<p><button class="btn sec sm" id="ex">Keluar</button></p>':''}`;
+  $('#ad').innerHTML=h+'</section>';
+}
+function csv(){
+  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  const out=['Tanggal,Jam masuk,Jam pulang,Nama,Kegiatan,Catatan,Metode,Jarak (m)'];
+  rows.slice().sort((a,b)=>a.ts-b.ts).forEach(r=>out.push([r.day,hm(r.ts),r.out?hm(r.out):'',r.name,r.activity,r.note,r.method,r.dist].map(q).join(',')));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+out.join('\r\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='rekap-kehadiran-'+dk(new Date())+'.csv';a.click();
+}
+function qr(){
+  const box=$('#qr');box.hidden=false;
+  const draw=()=>{box.innerHTML='';new QRCode(box,{text:location.origin+location.pathname+'?qr='+encodeURIComponent(C.qrToken),width:240,height:240})};
+  if(window.QRCode)return draw();
+  const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=draw;s.onerror=()=>toast('QR gagal dimuat. Periksa koneksi.');document.head.appendChild(s);
+}
+
+shell();
+Store.start(r=>{rows=r;paint()},()=>{if(tab==='urus')paint()}).catch(e=>toast('Firebase gagal dimulai: '+e.message));
+setInterval(paintLive,60000);
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

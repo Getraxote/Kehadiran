@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    // Ganti dengan email pengurus (huruf kecil)
+    function isAdmin() {
+      return signedIn() && request.auth.token.email_verified == true
+        && request.auth.token.email in ['email-pengurus@gmail.com'];
+    }
+    match /checkins/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['name','activity','note','day','ts','uid','method','dist','out'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.activity is string && request.resource.data.activity.size() <= 80
+        && request.resource.data.note is string && request.resource.data.note.size() <= 200
+        && request.resource.data.ts is number;
+      // Pemilik hanya boleh mengisi jam pulang
+      allow update: if signedIn() && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['out']);
+      allow delete: if isAdmin();
+    }
+  }
+}
