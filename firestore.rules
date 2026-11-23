@@ -2,8 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Wajib masuk dengan Google (login anonim tidak diterima).
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
     // GANTI dengan email Google pengurus (huruf kecil). Boleh lebih dari satu: ['a@gmail.com', 'b@gmail.com']
@@ -14,29 +16,50 @@ service cloud.firestore {
         && request.auth.token.email in ['getramaz@gmail.com'];
     }
 
-    // Pengaturan lokasi, radius, QR, poin. Semua anggota membaca, hanya pengurus menulis.
+    function namaValid(n) {
+      return n is string && n.size() >= 2 && n.size() <= 30;
+    }
+
+    // Pengaturan (QR, poin, dst). Semua anggota membaca, hanya pengurus menulis.
     match /settings/{doc} {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
 
-    // Daftar nama anggota. Semua membaca, hanya pengurus mengubah.
-    match /members/{id} {
+    // Profil anggota. id dokumen = uid akun Google. Anggota membuat & mengubah profilnya sendiri.
+    // Pengurus boleh menonaktifkan (aktif=false) atau menghapus profil.
+    match /members/{uid} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nama', 'foto', 'aktif', 'dibuat'])
+        && namaValid(request.resource.data.nama)
+        && request.resource.data.foto is string && request.resource.data.foto.size() <= 500
+        && request.resource.data.aktif == true
+        && request.resource.data.dibuat is number;
+
+      allow update: if (signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nama', 'foto'])
+          && namaValid(request.resource.data.nama)
+          && request.resource.data.foto is string && request.resource.data.foto.size() <= 500)
+        || isAdmin();
+
+      allow delete: if isAdmin();
     }
 
-    // Satu dokumen per anggota per hari, id = "YYYY-MM-DD_idAnggota".
+    // Satu dokumen per anggota per hari, id = "YYYY-MM-DD_uid". Hanya bisa diisi atas nama akun sendiri.
     match /checkins/{id} {
       allow read: if signedIn();
 
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['tanggal', 'memberId', 'nama', 'aktivitas', 'catatan', 'masuk', 'keluar', 'metode', 'jarak', 'riwayat'])
+        && request.resource.data.memberId == request.auth.uid
         && request.resource.data.tanggal is string && request.resource.data.tanggal.size() == 10
-        && request.resource.data.memberId is string && request.resource.data.memberId.size() < 40
-        && id == request.resource.data.tanggal + '_' + request.resource.data.memberId
-        && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
-        && request.resource.data.nama is string && request.resource.data.nama.size() < 80
+        && id == request.resource.data.tanggal + '_' + request.auth.uid
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.aktif == true
+        && request.resource.data.nama is string && request.resource.data.nama.size() <= 40
         && request.resource.data.aktivitas is string && request.resource.data.aktivitas.size() < 80
         && request.resource.data.catatan is string && request.resource.data.catatan.size() <= 300
         && request.resource.data.masuk is number
@@ -44,8 +67,9 @@ service cloud.firestore {
         && request.resource.data.metode in ['gps', 'qr']
         && request.resource.data.riwayat is list && request.resource.data.riwayat.size() <= 40;
 
-      // Yang boleh berubah hanya kegiatan, catatan, jam pulang, dan riwayat kegiatan.
+      // Hanya pemilik; yang boleh berubah: kegiatan, catatan, jam pulang, riwayat kegiatan.
       allow update: if signedIn()
+        && resource.data.memberId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aktivitas', 'catatan', 'keluar', 'riwayat'])
         && request.resource.data.aktivitas is string && request.resource.data.aktivitas.size() < 80
         && request.resource.data.catatan is string && request.resource.data.catatan.size() <= 300
@@ -54,6 +78,24 @@ service cloud.firestore {
 
       // Koreksi data salah: hanya pengurus.
       allow delete: if isAdmin();
+    }
+
+    // Posisi sementara untuk peta "Siapa di Sini": meter dari titik lokasi, bukan koordinat GPS.
+    // Dokumen ditulis hanya oleh pemiliknya selama berada di dalam radius, dan dihapus saat keluar.
+    match /presence/{uid} {
+      allow read: if signedIn();
+
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nama', 'foto', 'dx', 'dy', 'acc', 't'])
+        && request.resource.data.nama is string && request.resource.data.nama.size() <= 40
+        && request.resource.data.foto is string && request.resource.data.foto.size() <= 500
+        && request.resource.data.dx is number && request.resource.data.dx > -2000 && request.resource.data.dx < 2000
+        && request.resource.data.dy is number && request.resource.data.dy > -2000 && request.resource.data.dy < 2000
+        && request.resource.data.acc is number
+        && request.resource.data.t == request.time;
+
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
   }
 }

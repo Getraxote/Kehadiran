@@ -1,7 +1,13 @@
 /* Lapisan data. Dua "mesin" dengan antarmuka sama:
      - demo  : localStorage di perangkat ini (config.js -> enabled: false)
      - cloud : Firebase Firestore + Authentication (config.js -> enabled: true)
-   UI hanya bicara dengan window.TKStore, jadi tidak peduli mesin mana yang dipakai. */
+   UI hanya bicara dengan window.TKStore, jadi tidak peduli mesin mana yang dipakai.
+
+   Model data:
+     members/{uid}   profil anggota (nama panggilan, foto Google). Dibuat sendiri oleh anggota.
+     checkins/{tgl_uid}  satu catatan per anggota per hari.
+     presence/{uid}  posisi SEMENTARA (meter dari titik lokasi) selama anggota berada di dalam radius.
+                     Dihapus saat keluar radius / lokasi mati / aplikasi ditutup. */
 window.TKStore = (function () {
   'use strict';
   var CFG = window.TK_CONFIG, D = CFG.defaults, U = window.TKU;
@@ -9,8 +15,9 @@ window.TKStore = (function () {
 
   var S = {
     mode: CFG.enabled ? 'cloud' : 'demo',
-    ready: false, settings: null, settingsLoaded: false,
-    members: [], checkins: [], user: null, error: null, fromCache: false
+    ready: false, authReady: false, membersLoaded: false,
+    settings: null, settingsLoaded: false,
+    members: [], checkins: [], presence: [], user: null, profil: null, error: null, fromCache: false
   };
   var handlers = {};
   function on(ev, cb) { (handlers[ev] = handlers[ev] || []).push(cb); }
@@ -29,7 +36,9 @@ window.TKStore = (function () {
   }
   S.settings = gabung({});
   function urutNama(a, b) { return String(a.nama).localeCompare(String(b.nama), 'id'); }
-  function idAnggota() { return 'm' + Date.now().toString(36) + U.acak(3); }
+  function hitungProfil() {
+    S.profil = S.user ? (S.members.filter(function (m) { return m.id === S.user.uid; })[0] || null) : null;
+  }
   function isAdminEmail(e) {
     e = String(e || '').toLowerCase();
     return (CFG.adminEmails || []).map(function (x) { return String(x).toLowerCase(); }).indexOf(e) !== -1;
@@ -37,7 +46,7 @@ window.TKStore = (function () {
 
   /* =================== MESIN DEMO =================== */
   var demo = (function () {
-    var KEY = 'tk_demo_v1', raw = null;
+    var KEY = 'tk_demo_v2', UKEY = 'tk_demo_user', raw = null, saya = null;
 
     function rng(seed) {   // mulberry32: acak yang bisa diulang
       return function () {
@@ -46,6 +55,11 @@ window.TKStore = (function () {
         t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
         return ((t ^ t >>> 14) >>> 0) / 4294967296;
       };
+    }
+    function hash(str) {
+      var h = 2166136261;
+      for (var i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+      return (h >>> 0) / 4294967296;
     }
 
     function seed() {
@@ -56,14 +70,13 @@ window.TKStore = (function () {
       var kegiatan = D.kategori.concat(['Piket / bersih-bersih']);
       var catatan = ['Menyusun jadwal kegiatan bulan depan', 'Membantu persiapan acara santunan', 'Diskusi program beasiswa',
         'Merapikan inventaris perlengkapan', 'Menyiapkan proposal donatur', 'Rapat koordinasi pengurus', 'Membuat desain spanduk'];
-      var members = nama.map(function (n, i) { return { id: 'demo' + (i + 1), nama: n, aktif: true, dibuat: now - 9e9 }; });
+      var members = nama.map(function (n, i) { return { id: 'demo' + (i + 1), nama: n, foto: '', aktif: true, dibuat: now - 9e9 }; });
       var checkins = {};
-      for (var off = 60; off >= 0; off--) {
+      for (var off = 60; off >= 1; off--) {
         var tgl = U.addDays(today, -off);
-        var dow = new Date(U.addDays(today, -off) + 'T12:00:00').getDay();
+        var dow = new Date(tgl + 'T12:00:00').getDay();
         members.forEach(function (m, i) {
           var p = bobot[i] * (dow === 0 || dow === 6 ? 1.1 : 0.75);
-          if (off === 0) return;              // hari ini diisi terpisah
           if (r() > p * 0.9) return;
           var jamMasuk = 8 + Math.floor(r() * 10), mnt = Math.floor(r() * 60);
           var d = new Date(tgl + 'T00:00:00'); d.setHours(jamMasuk, mnt);
@@ -79,9 +92,8 @@ window.TKStore = (function () {
         });
       }
       // hari ini: beberapa orang sedang di lokasi
-      var hadirSekarang = [[0, 'Rapat', 150, 'Rapat koordinasi pengurus'], [1, 'Persiapan Acara', 95, 'Menyiapkan acara santunan'],
-        [3, 'Nongkrong / Diskusi', 40, ''], [5, 'Eksekusi Proyek', 25, 'Membuat desain spanduk']];
-      hadirSekarang.forEach(function (h) {
+      [[0, 'Rapat', 150, 'Rapat koordinasi pengurus'], [1, 'Persiapan Acara', 95, 'Menyiapkan acara santunan'],
+        [3, 'Nongkrong / Diskusi', 40, ''], [5, 'Eksekusi Proyek', 25, 'Membuat desain spanduk']].forEach(function (h) {
         var m = members[h[0]], masuk = now - h[2] * 60000;
         if (U.todayStr(new Date(masuk)) !== today) masuk = now - 60000;
         var id = today + '_' + m.id;
@@ -89,30 +101,49 @@ window.TKStore = (function () {
           masuk: masuk, keluar: null, metode: 'gps', jarak: 12 + h[0] * 7, riwayat: [{ a: h[1], t: masuk }] };
       });
       return {
-        settings: { lokasiNama: 'Basecamp', lat: -6.175392, lng: 106.827153, radius: 150,
-          qrToken: U.acak(8), qrAktif: true },
+        settings: { lokasiNama: 'Basecamp', lat: -6.175392, lng: 106.827153, radius: 150, qrToken: U.acak(8), qrAktif: true },
         members: members, checkins: checkins
       };
     }
 
+    /* Anggota contoh yang sedang hadir "terlihat" di peta, bergerak pelan agar terasa hidup. */
+    function presenceContoh() {
+      var now = Date.now(), today = U.todayStr(), R = S.settings.radius || 100, out = [];
+      raw.members.forEach(function (m) {
+        if (!/^demo\d+$/.test(m.id)) return;
+        var c = raw.checkins[today + '_' + m.id];
+        if (!c || c.keluar != null) return;
+        var a = parseInt(m.id.slice(4), 10) * 2.399963 + Math.sin(now / 25000 + hash(m.id + 'x') * 6) * 0.25;   // sudut emas: tersebar merata
+        var rr = (0.3 + 0.55 * hash(m.id + 'r')) * R * (1 + 0.04 * Math.sin(now / 9000));
+        out.push({ id: m.id, nama: m.nama, foto: '', dx: Math.round(Math.cos(a) * rr), dy: Math.round(Math.sin(a) * rr), acc: 8, t: now });
+      });
+      return out;
+    }
+    function muatUser() { try { return JSON.parse(localStorage.getItem(UKEY)); } catch (e) { return null; } }
     function load() {
       try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) { raw = null; }
       if (!raw || !raw.members) { raw = seed(); save(); }
     }
     function save() { try { localStorage.setItem(KEY, JSON.stringify(raw)); } catch (e) { console.warn(e); } }
+    function publikasiPresence() {
+      S.presence = S.user ? presenceContoh().concat(saya ? [saya] : []) : [];
+      emit('presence');
+    }
     function publish() {
       S.settings = gabung(raw.settings);
       S.settingsLoaded = true;
       S.members = raw.members.slice().sort(urutNama);
       S.checkins = Object.keys(raw.checkins).map(function (k) { return raw.checkins[k]; });
-      emit('settings'); emit('members'); emit('checkins');
+      hitungProfil();
+      emit('settings'); emit('members'); emit('checkins'); publikasiPresence();
     }
     function init() {
       load();
-      S.user = { isAdmin: true, name: 'Pengurus (demo)', email: '' };
-      S.ready = true;
+      S.user = muatUser();
+      S.authReady = true; S.membersLoaded = true; S.ready = true;
       publish(); emit('auth');
       window.addEventListener('storage', function (e) { if (e.key === KEY) { load(); publish(); } });
+      setInterval(publikasiPresence, 15000);
       return Promise.resolve();
     }
     function mutate(fn) { fn(raw); save(); publish(); return Promise.resolve(); }
@@ -123,24 +154,38 @@ window.TKStore = (function () {
       updateCheckin: function (id, patch) { return mutate(function (r) { Object.assign(r.checkins[id], patch); }); },
       deleteCheckin: function (id) { return mutate(function (r) { delete r.checkins[id]; }); },
       saveSettings: function (patch) { return mutate(function (r) { r.settings = Object.assign({}, r.settings, patch); }); },
-      addMembers: function (names) {
+      saveProfil: function (nama) {
         return mutate(function (r) {
-          names.forEach(function (n) { r.members.push({ id: idAnggota(), nama: n, aktif: true, dibuat: Date.now() }); });
+          var m = r.members.filter(function (x) { return x.id === S.user.uid; })[0];
+          if (m) m.nama = nama;
+          else r.members.push({ id: S.user.uid, nama: nama, foto: S.user.foto || '', aktif: true, dibuat: Date.now() });
         });
       },
       updateMember: function (id, patch) {
         return mutate(function (r) { r.members.forEach(function (m) { if (m.id === id) Object.assign(m, patch); }); });
       },
       deleteMember: function (id) { return mutate(function (r) { r.members = r.members.filter(function (m) { return m.id !== id; }); }); },
-      signInAdmin: function () { return Promise.resolve(); },
-      signOut: function () { return Promise.resolve(); },
-      reset: function () { localStorage.removeItem(KEY); load(); publish(); return Promise.resolve(); }
+      putPresence: function (rec) { saya = Object.assign({ id: S.user.uid, t: Date.now() }, rec); publikasiPresence(); return Promise.resolve(); },
+      delPresence: function () { saya = null; publikasiPresence(); return Promise.resolve(); },
+      signIn: function () {
+        S.user = { uid: 'demo-me', name: 'Pengguna Demo', email: 'demo@contoh.id', foto: '', isAdmin: true };
+        try { localStorage.setItem(UKEY, JSON.stringify(S.user)); } catch (e) { /* abaikan */ }
+        publish(); emit('auth'); return Promise.resolve();
+      },
+      signOut: function () {
+        try { localStorage.removeItem(UKEY); } catch (e) { /* abaikan */ }
+        S.user = null; saya = null; publish(); emit('auth'); return Promise.resolve();
+      },
+      reset: function () {
+        localStorage.removeItem(KEY); localStorage.removeItem(UKEY);
+        S.user = null; saya = null; load(); publish(); emit('auth'); return Promise.resolve();
+      }
     };
   })();
 
   /* =================== MESIN CLOUD (Firebase) =================== */
   var cloud = (function () {
-    var A, Au, F, app, auth, db, started = false, readyTimer = null;
+    var A, Au, F, app, auth, db, unsubs = [], readyTimer = null;
 
     function galat(e) {
       var kode = (e && (e.code || e.message)) || String(e);
@@ -152,30 +197,40 @@ window.TKStore = (function () {
       return Promise.race([p, new Promise(function (res) { setTimeout(function () { res('antre'); }, ms || 6000); })]);
     }
 
-    function mulaiPendengar() {
-      if (started) return; started = true;
-      F.onSnapshot(F.doc(db, 'settings', 'main'), function (snap) {
+    function pasang() {
+      if (unsubs.length) return;
+      unsubs.push(F.onSnapshot(F.doc(db, 'settings', 'main'), function (snap) {
         S.settings = gabung(snap.exists() ? snap.data() : {});
         S.settingsLoaded = true; emit('settings');
-      }, galat);
-      F.onSnapshot(F.collection(db, 'members'), function (snap) {
+      }, galat));
+      unsubs.push(F.onSnapshot(F.collection(db, 'members'), function (snap) {
         S.members = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).sort(urutNama);
-        emit('members');
-      }, galat);
+        S.membersLoaded = true; hitungProfil(); emit('members');
+      }, galat));
       var sejak = U.addDays(U.todayStr(), -(D.riwayatHari || 180));
-      F.onSnapshot(F.query(F.collection(db, 'checkins'), F.where('tanggal', '>=', sejak)), function (snap) {
+      unsubs.push(F.onSnapshot(F.query(F.collection(db, 'checkins'), F.where('tanggal', '>=', sejak)), function (snap) {
         S.checkins = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         S.fromCache = snap.metadata.fromCache;
         S.ready = true; S.error = null; emit('checkins');
-      }, galat);
+      }, galat));
+      unsubs.push(F.onSnapshot(F.collection(db, 'presence'), function (snap) {
+        S.presence = snap.docs.map(function (d) {
+          var x = d.data({ serverTimestamps: 'estimate' });
+          return { id: d.id, nama: x.nama, foto: x.foto, dx: x.dx, dy: x.dy, acc: x.acc, t: x.t && x.t.toMillis ? x.t.toMillis() : (x.t || 0) };
+        });
+        emit('presence');
+      }, galat));
       readyTimer = setTimeout(function () { if (!S.ready) { S.ready = true; emit('checkins'); } }, 7000);
+    }
+    function lepas() {
+      unsubs.forEach(function (f) { try { f(); } catch (e) { /* abaikan */ } });
+      unsubs = []; clearTimeout(readyTimer);
+      S.members = []; S.checkins = []; S.presence = []; S.profil = null; S.membersLoaded = false; S.settingsLoaded = false;
     }
 
     async function init() {
       var fb = CFG.firebase || {};
-      if (!fb.apiKey || !fb.projectId) {
-        S.error = 'config-kosong'; S.ready = true; emit('error'); return;
-      }
+      if (!fb.apiKey || !fb.projectId) { S.error = 'config-kosong'; S.ready = true; emit('error'); return; }
       try {
         var mods = await Promise.all([
           import(BASE + 'firebase-app.js'), import(BASE + 'firebase-auth.js'), import(BASE + 'firebase-firestore.js')
@@ -189,15 +244,13 @@ window.TKStore = (function () {
       } catch (e) { S.error = 'sdk-gagal'; S.ready = true; emit('error'); return; }
 
       Au.onAuthStateChanged(auth, function (u) {
+        S.authReady = true;
         if (!u) {
-          Au.signInAnonymously(auth).catch(galat);
+          lepas(); S.user = null; S.ready = true; emit('auth'); emit('members'); emit('presence');
           return;
         }
-        S.user = u.isAnonymous ? null : {
-          name: u.displayName || u.email, email: (u.email || '').toLowerCase(), isAdmin: isAdminEmail(u.email), google: true
-        };
-        emit('auth');
-        mulaiPendengar();
+        S.user = { uid: u.uid, name: u.displayName || u.email, email: (u.email || '').toLowerCase(), foto: u.photoURL || '', isAdmin: isAdminEmail(u.email) };
+        hitungProfil(); emit('auth'); pasang();
       });
       window.addEventListener('online', function () { emit('checkins'); });
       window.addEventListener('offline', function () { emit('checkins'); });
@@ -210,20 +263,26 @@ window.TKStore = (function () {
       updateCheckin: function (id, patch) { return tunggu(F.updateDoc(ref('checkins', id), patch)); },
       deleteCheckin: function (id) { return F.deleteDoc(ref('checkins', id)); },
       saveSettings: function (patch) { return F.setDoc(ref('settings', 'main'), patch, { merge: true }); },
-      addMembers: function (names) {
-        var b = F.writeBatch(db);
-        names.forEach(function (n) { b.set(ref('members', idAnggota()), { nama: n, aktif: true, dibuat: Date.now() }); });
-        return b.commit();
+      saveProfil: function (nama) {
+        var r = ref('members', S.user.uid);
+        if (S.profil) return F.updateDoc(r, { nama: nama, foto: S.user.foto || '' });
+        return F.setDoc(r, { nama: nama, foto: S.user.foto || '', aktif: true, dibuat: Date.now() });
       },
       updateMember: function (id, patch) { return F.updateDoc(ref('members', id), patch); },
       deleteMember: function (id) { return F.deleteDoc(ref('members', id)); },
-      signInAdmin: async function () {
+      putPresence: function (rec) {
+        return F.setDoc(ref('presence', S.user.uid), Object.assign({}, rec, { t: F.serverTimestamp() }));
+      },
+      delPresence: function () { return S.user ? F.deleteDoc(ref('presence', S.user.uid)) : Promise.resolve(); },
+      signIn: async function () {
         var p = new Au.GoogleAuthProvider();
         p.setCustomParameters({ prompt: 'select_account' });
         try { await Au.signInWithPopup(auth, p); }
         catch (e) {
           if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
             await Au.signInWithRedirect(auth, p);
+          } else if (e && (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request')) {
+            return;
           } else throw e;
         }
       },
@@ -234,8 +293,8 @@ window.TKStore = (function () {
 
   var engine = S.mode === 'cloud' ? cloud : demo;
   var api = { state: S, on: on, mode: S.mode };
-  ['init', 'createCheckin', 'updateCheckin', 'deleteCheckin', 'saveSettings', 'addMembers', 'updateMember',
-    'deleteMember', 'signInAdmin', 'signOut', 'reset'].forEach(function (k) { api[k] = engine[k]; });
+  ['init', 'createCheckin', 'updateCheckin', 'deleteCheckin', 'saveSettings', 'saveProfil', 'updateMember', 'deleteMember',
+    'putPresence', 'delPresence', 'signIn', 'signOut', 'reset'].forEach(function (k) { api[k] = engine[k]; });
   api.isAdmin = function () { return !!(S.user && S.user.isAdmin); };
   return api;
 })();

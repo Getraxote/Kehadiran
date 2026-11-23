@@ -1,71 +1,87 @@
 # Tanda Kehadiran — Yayasan Al-Kahfi
 
-Aplikasi web ringan (GitHub Pages + Firebase) untuk mencatat kehadiran perkumpulan: tombol hadir aktif hanya di dalam radius GPS, QR Code cadangan, pencatatan "lagi ngapain", daftar "Siapa di Sini" langsung, papan apresiasi, rekap, dan ekspor Excel/CSV.
+Aplikasi web ringan (GitHub Pages + Firebase) untuk mencatat kehadiran perkumpulan: masuk dengan Google, tombol hadir aktif hanya di dalam radius GPS, QR Code cadangan, pencatatan "lagi ngapain", **peta kecil "Siapa di Sini"** dengan foto profil, papan apresiasi, rekap, dan ekspor Excel/CSV.
 
 ## Isi folder
 
 | Berkas | Fungsi |
 |---|---|
 | `index.html` | Kerangka halaman |
-| `js/config.js` | **Satu-satunya berkas yang perlu Anda ubah**: lokasi, radius, kegiatan, Firebase, email pengurus |
+| `js/config.js` | **Berkas utama yang Anda ubah**: lokasi, radius, kegiatan, Firebase, email pengurus |
 | `js/app.js` | Tampilan dan alur |
 | `js/store.js` | Penyimpanan data (mode demo atau Firebase) |
 | `js/util.js`, `js/qr.js` | Fungsi bantu, poin/streak, ekspor Excel, pembuat QR (tanpa pustaka luar) |
 | `assets/`, `icons/` | Gaya, logo, ikon aplikasi |
-| `manifest.webmanifest`, `sw.js` | Agar bisa dipasang di layar utama HP dan dibuka kembali tanpa internet |
+| `manifest.webmanifest`, `sw.js` | Agar bisa dipasang di layar utama HP |
 | `firestore.rules` | Aturan keamanan, ditempel di Firebase Console |
+
+## Cara anggota memakai
+
+1. Buka alamat aplikasi → muncul pop-up **Masuk dengan Google**.
+2. Pertama kali: pop-up **Siapa namamu di sini?**. Anggota mengisi **nama panggilan sendiri**, mencentang persetujuan peta lokasi, lalu lanjut. Nama tidak boleh kembar dengan anggota lain. Foto profil Google otomatis menjadi ikon.
+3. Aktifkan lokasi (tekan **Cek Lokasi Saya**). Di dalam radius, tombol **Isi Tanda Kehadiran** aktif. Anggota memilih kegiatan, menulis catatan (opsional), lalu menekan tombol.
+4. Menu di pojok kanan atas (foto/nama): ubah nama panggilan, matikan "Tampilkan aku di peta", keluar.
+
+Pengurus tidak perlu lagi mengetik daftar nama: anggota mendaftar sendiri. Pengurus bisa **menonaktifkan** (blokir absen) atau **menghapus** (reset profil) anggota di menu Pengurus.
+
+## Peta di "Siapa di Sini"
+
+- Menampilkan lingkaran radius dengan ikon (foto profil) setiap anggota yang **sedang berada di dalam radius**, menyalakan lokasi, dan membuka aplikasi.
+- Keluar radius, lokasi dimatikan/ditolak, aplikasi ditutup atau dikirim ke latar belakang → ikon hilang (maksimal ±75 detik).
+- Yang tersimpan di database hanya **jarak dari titik pusat dalam meter** (bukan koordinat GPS), di dokumen sementara `presence/{uid}` yang dihapus saat anggota pergi. Anggota bisa menyembunyikan diri kapan saja.
+- Latar peta memakai ubin OpenStreetMap (butuh internet). Tanpa internet, peta tetap tampil sebagai radar polos.
+- Batas teknis: browser tidak boleh melacak lokasi saat aplikasi ditutup atau layar terkunci, jadi pelacakan hanya berjalan selama aplikasi terbuka di HP anggota. Penggunaan: sekitar 3 tulis/menit per anggota yang sedang di radius; untuk puluhan anggota masih jauh di bawah kuota gratis.
 
 ## Mengubah lokasi, radius, dan kegiatan
 
-Semuanya di `js/config.js`. Selama `configAdalahSumber: true`, nilai di berkas itu **selalu menang**; tidak ada data lama di database yang bisa menimpanya. Setelah mengedit, unggah ulang berkas ke GitHub, tunggu ±1 menit, lalu muat ulang halaman (di HP, tutup lalu buka lagi aplikasinya).
-
-Titik koordinat paling mudah didapat dengan: buka Google Maps, tekan lama di titik basecamp, lalu salin dua angka yang muncul (lintang, bujur).
-
-Jika ingin pengurus bisa mengubah lokasi dari menu **Pengurus** (tanpa edit berkas), ganti menjadi `configAdalahSumber: false`.
+Semuanya di `js/config.js`. Selama `configAdalahSumber: true`, nilai di berkas itu **selalu menang** atas data lama di database. Setelah mengedit, unggah ulang ke GitHub, tunggu ±1 menit, lalu muat ulang (di HP, tutup lalu buka lagi aplikasinya). Koordinat termudah: Google Maps → tekan lama di titik basecamp → salin dua angka (lintang, bujur).
 
 ## Pasang di GitHub Pages
 
 1. Buat repository publik di github.com, misalnya `kehadiran`.
-2. **Add file → Upload files**, seret **isi** folder ini (bukan folder pembungkusnya; `index.html` harus di lapisan paling atas), lalu **Commit changes**.
+2. **Add file → Upload files**, seret **isi** folder ini (`index.html` harus di lapisan paling atas), lalu **Commit changes**.
 3. **Settings → Pages → Branch: `main`, folder `/ (root)` → Save**.
 4. Alamatnya: `https://NAMA-GITHUB.github.io/kehadiran/`.
 
 ## Menyiapkan Firebase (proyek `kehadiran-5dc1b` sudah ada di config.js)
 
-1. **Authentication → Sign-in method**: aktifkan **Anonymous** (untuk anggota biasa) dan **Google** (untuk pengurus).
-2. **Authentication → Settings → Authorized domains → Add domain**: `NAMA-GITHUB.github.io` (tanpa `https://` dan tanpa nama folder).
+1. **Authentication → Sign-in method**: aktifkan **Google**. (Login Anonymous **tidak** diperlukan lagi.)
+2. **Authentication → Settings → Authorized domains → Add domain**: `NAMA-GITHUB.github.io` (tanpa `https://`, tanpa nama folder). Tanpa ini pop-up login gagal.
 3. **Firestore Database → Create database** (lokasi `asia-southeast2` Jakarta, mode production).
-4. Tab **Rules**: hapus isinya, tempel isi `firestore.rules` (email pengurus sudah `getramaz@gmail.com`), klik **Publish**. Email di rules harus sama dengan `adminEmails` di `config.js`.
+4. Tab **Rules**: hapus isinya, tempel isi `firestore.rules` **yang terbaru dari folder ini** (email pengurus sudah `getramaz@gmail.com`), klik **Publish**. Aturan lama tidak cocok dengan versi ini.
 
-## Pemakaian pertama
+Pengurus = akun Google yang emailnya ada di `adminEmails` (config.js) dan di `firestore.rules`. Pengurus masuk lewat pop-up yang sama dengan anggota; menu **Pengurus** muncul di menu akun.
 
-1. Buka aplikasi → menu **Pengurus** → **Masuk dengan Google** memakai akun pengurus.
-2. Di bagian **Anggota**, tempel daftar nama (satu per baris). Anggota baru **harus didaftarkan dulu**; aturan database menolak absen dari nama yang tidak terdaftar.
-3. Bagian **QR Code** → **Aktifkan QR Code** → **Cetak**, lalu tempel di basecamp.
-4. Bagikan alamat aplikasi ke anggota. Mereka tidak perlu login: cukup pilih nama, pilih kegiatan, tekan **Isi Tanda Kehadiran**.
+## Pemakaian pertama (pengurus)
+
+1. Buka aplikasi, masuk dengan Google, isi nama panggilan.
+2. Menu **Pengurus → QR Code → Aktifkan QR Code → Cetak**, tempel di basecamp.
+3. Bagikan alamat aplikasi ke anggota. Selesai.
 
 ## Cara kerja singkat
 
-- **GPS:** tombol aktif bila jarak ≤ radius. Jika akurasi GPS lebih buruk dari radius, anggota diberi peringatan dan diarahkan memakai QR.
-- **QR:** memindai QR dengan kamera HP membuka aplikasi dan membuka izin absen selama 3 jam di perangkat itu.
-- **Satu catatan per orang per hari.** Bisa memperbarui kegiatan, menekan Pulang, dan Masuk Lagi di hari yang sama. Yang lupa Pulang otomatis hilang dari "Siapa di Sini" setelah 8 jam (`autoPulangJam`).
-- **Poin** dihitung dari data, bukan disimpan: hadir +10, catatan kontribusi +5, bonus streak pekan beruntun. Angkanya di `config.js`.
-- **Rekap:** per tanggal, per anggota, dan tabel rinci. Pengurus dapat mengunduh `.xlsx` (3 lembar) atau `.csv` (pemisah titik koma, cocok untuk Excel berbahasa Indonesia) dan menghapus catatan yang salah.
+- **GPS:** tombol aktif bila jarak ≤ radius. Bila akurasi GPS lebih buruk dari radius, anggota diberi peringatan dan diarahkan memakai QR.
+- **QR:** memindai QR dengan kamera HP membuka aplikasi dan membuka izin absen 3 jam di perangkat itu.
+- **Satu catatan per orang per hari.** Bisa memperbarui kegiatan, menekan Pulang, dan Masuk Lagi. Yang lupa Pulang hilang dari "Siapa di Sini" setelah 8 jam (`autoPulangJam`).
+- **Poin** dihitung dari data: hadir +10, catatan kontribusi +5, bonus streak pekan beruntun (angka di `config.js`).
+- **Rekap:** per tanggal, per anggota, tabel rinci. Pengurus mengunduh `.xlsx` (3 lembar) atau `.csv` (pemisah titik koma) dan menghapus catatan yang salah.
+- Bila anggota mengganti nama panggilan, catatan lama di rekap tetap memakai nama saat itu.
 
 ## Catatan keamanan (jujur)
 
-- Anggota tidak login, jadi **siapa pun yang tahu alamat aplikasi dapat membaca daftar kehadiran** dan, secara teknis, mengisi atas nama orang lain. Cocok untuk kelompok yang saling percaya; jangan menaruh informasi sensitif di catatan kontribusi dan jangan menyebar alamat aplikasi sembarangan.
-- Pemeriksaan GPS dilakukan di HP anggota, sehingga bisa dipalsukan oleh yang paham teknis. Pemeriksaan radius ini untuk mencegah salah klik, bukan melawan kecurangan.
-- Hanya akun di `adminEmails` yang dapat mengubah anggota/pengaturan atau menghapus catatan (ditegakkan oleh `firestore.rules`).
+- Hanya akun Google yang bisa membaca data; pengunjung tanpa login tidak bisa. **Tetapi siapa pun yang punya akun Google dan tahu alamat aplikasi dapat mendaftar sendiri** dan melihat daftar kehadiran. Jangan sebar alamat sembarangan; pengurus bisa menonaktifkan/menghapus akun yang tidak dikenal. Jika perlu, kunci lebih ketat dengan persetujuan pengurus (belum dipasang; bisa ditambahkan).
+- Absen hanya bisa dilakukan atas nama akun sendiri (diperiksa aturan database), jadi tidak bisa mengisi untuk orang lain.
+- Pemeriksaan radius dilakukan di HP anggota sehingga bisa dipalsukan oleh yang paham teknis. Ini untuk mencegah salah klik, bukan melawan kecurangan. Hal yang sama berlaku untuk posisi di peta.
+- Hanya pengurus yang dapat menghapus catatan atau menonaktifkan anggota.
 
 ## Kuota gratis Firebase (Spark)
 
-20.000 tulis dan 50.000 baca per hari. Aplikasi menyimpan cache di perangkat sehingga pembukaan berulang hanya membaca data yang berubah. Untuk puluhan anggota ini sangat cukup.
+20.000 tulis dan 50.000 baca per hari. Aplikasi menyimpan cache di perangkat sehingga pembukaan berulang hanya membaca data yang berubah. Untuk puluhan anggota ini cukup.
 
 ## Setelah mengubah berkas
 
-Naikkan angka `VERSION` di `sw.js` (`kehadiran-v1` → `kehadiran-v2`) supaya cache lama di HP anggota diganti.
+Naikkan angka `VERSION` di `sw.js` (`kehadiran-v2` → `kehadiran-v3`) supaya cache lama di HP anggota diganti.
 
 ## Mencoba tanpa Firebase
 
-Ubah `enabled: true` menjadi `enabled: false` di `js/config.js`. Aplikasi berjalan dalam **mode demo** dengan data contoh yang hanya tersimpan di browser, lengkap dengan simulasi "di lokasi / di luar".
+Ubah `enabled: true` menjadi `enabled: false` di `js/config.js`. Mode demo: "Masuk (simulasi Google)", data contoh tersimpan di browser, anggota contoh muncul di peta, dan ada tombol simulasi "Di lokasi / Di luar" di panel GPS.

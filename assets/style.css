@@ -40,7 +40,8 @@ svg.i { width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-
 .nav a:hover { opacity: 1; background: rgba(255, 255, 255, .06); }
 .nav a[aria-current="page"] { color: var(--gold); border-bottom-color: var(--gold); opacity: 1; }
 .hdr .cta { margin-left: 8px; }
-.hdr-admin { display: none; color: #fff; margin-left: auto; padding: 8px; border-radius: 50%; }
+.usr { position: relative; margin-left: 8px; }
+.nav + .cta { margin-left: 8px; }
 
 /* ---------- tombol ---------- */
 .btn {
@@ -302,7 +303,7 @@ table.t { border-collapse: collapse; width: 100%; font-size: 14px; background: #
 /* ---------- responsif ---------- */
 @media (max-width: 900px) {
   .nav, .hdr .cta { display: none; }
-  .hdr-admin { display: inline-flex; }
+  .usr { margin-left: auto; }
   .hero .wrap { grid-template-columns: 1fr; padding: 28px 0 74px; gap: 20px; }
   .cols { grid-template-columns: 1fr; }
   .g4 { grid-template-columns: repeat(2, 1fr); }
@@ -339,3 +340,59 @@ table.t { border-collapse: collapse; width: 100%; font-size: 14px; background: #
   .btn.lg { font-size: 18px; padding: 12px 22px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- foto profil, menu pengguna ---------- */
+.av { overflow: hidden; }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #fff; }
+.av.live { overflow: visible; }
+.av.live img { border-radius: 50%; }
+.chip-u { display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, .12); border: 0; color: #fff; border-radius: 999px; padding: 4px 12px 4px 4px; cursor: pointer; font: 600 15px var(--head); }
+.chip-u:hover { background: rgba(255, 255, 255, .2); }
+.chip-u .un { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.umenu { position: absolute; right: 0; top: calc(100% + 10px); width: 260px; background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); padding: 8px; z-index: 70; }
+.umenu .uh { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; display: grid; }
+.umenu .uh b { font: 700 18px var(--head); color: var(--ink); }
+.umenu .uh small { color: var(--muted); overflow-wrap: anywhere; }
+.umenu button, .umenu a { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; padding: 10px; border-radius: 9px; cursor: pointer; color: var(--ink); font-weight: 600; text-decoration: none; font-size: 14.5px; }
+.umenu button:hover, .umenu a:hover { background: #f1f6f3; }
+.umenu .cek { padding: 10px; }
+.cek { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.cek input { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--g600); flex: none; }
+
+/* ---------- pop-up masuk / profil ---------- */
+body.gated { overflow: hidden; }
+.gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; overflow: auto;
+  background: linear-gradient(120deg, rgba(14, 42, 81, .94), rgba(15, 74, 78, .93) 50%, rgba(28, 116, 66, .93)); backdrop-filter: blur(6px); }
+.gate-card { background: #fff; border-radius: 20px; padding: 28px 26px 24px; width: min(440px, 100%); text-align: center; box-shadow: var(--shadow-lg); display: grid; gap: 12px; }
+.gate-card h2 { font-size: 30px; }
+.gate-card p { margin: 0; color: var(--muted); }
+.gate-card p.kecil { font-size: 12.5px; }
+.gate-card p.galat { color: var(--bad); font-weight: 600; min-height: 0; font-size: 14px; }
+.gate-card p.galat:empty { display: none; }
+.gate-logo { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto; box-shadow: 0 0 0 4px #e5f4ec; }
+.gate-av .av { width: 76px; height: 76px; font-size: 28px; margin: 0 auto; }
+.gbtn { background: #fff; color: #1f1f1f; box-shadow: inset 0 0 0 2px #d5ded9; font-family: var(--body); font-weight: 600; font-size: 16px; }
+.gbtn:hover { background: #f6faf8; filter: none; }
+
+/* ---------- peta Siapa di Sini ---------- */
+.peta-wrap { display: grid; grid-template-columns: minmax(280px, 480px) 1fr; gap: 18px; align-items: start; }
+.peta { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 50%, #dff0e5 0, #cfe6d8 100%),
+    repeating-linear-gradient(0deg, transparent 0 24px, rgba(18, 81, 54, .08) 24px 25px),
+    repeating-linear-gradient(90deg, transparent 0 24px, rgba(18, 81, 54, .08) 24px 25px); }
+.peta .tiles { position: absolute; inset: 0; }
+.peta .tl { position: absolute; display: block; max-width: none; }
+.peta .ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; border: 2px dashed var(--gold-d);
+  box-shadow: 0 0 0 999px rgba(10, 51, 34, .42); background: rgba(237, 186, 59, .08); pointer-events: none; }
+.peta .pusat { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); color: #fff; background: var(--g800); width: 26px; height: 26px; border-radius: 50% 50% 50% 0; rotate: -45deg; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0, 0, 0, .35); }
+.peta .pusat svg { rotate: 45deg; width: 14px; height: 14px; }
+.peta .mk { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; transition: left 1s linear, top 1s linear; z-index: 3; }
+.peta .mk .av { box-shadow: 0 0 0 3px #fff, 0 3px 8px rgba(0, 0, 0, .35); }
+.peta .mk.me .av { box-shadow: 0 0 0 3px var(--gold), 0 3px 8px rgba(0, 0, 0, .35); }
+.peta .mk i { font: 700 12px var(--head); font-style: normal; background: rgba(255, 255, 255, .94); color: var(--ink); padding: 1px 7px; border-radius: 8px; margin-top: 3px; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.peta .u, .peta .skala, .peta .attr { position: absolute; font: 600 11px var(--body); background: rgba(255, 255, 255, .88); padding: 2px 7px; border-radius: 6px; color: #35493e; z-index: 4; }
+.peta .u { right: 8px; top: 8px; }
+.peta .skala { left: 8px; bottom: 8px; }
+.peta .attr { right: 8px; bottom: 8px; font-size: 10px; }
+@media (max-width: 900px) { .peta-wrap { grid-template-columns: 1fr; } .chip-u .un { display: none; } .chip-u { padding: 3px; } }
