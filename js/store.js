@@ -231,7 +231,10 @@ window.TKStore = (function () {
     var ref = function (col, id) { return F.doc(db, col, id); };
     return {
       init: init,
-      createCheckin: function (rec) { return tunggu(F.setDoc(ref('checkins', rec.id), rec)); },
+      createCheckin: function (rec) {
+        var data = Object.assign({}, rec); delete data.id;   // id hanya nama dokumen, bukan isi (aturan menolak field di luar daftar)
+        return tunggu(F.setDoc(ref('checkins', rec.id), data));
+      },
       updateCheckin: function (id, patch) { return tunggu(F.updateDoc(ref('checkins', id), patch)); },
       deleteCheckin: function (id) { return F.deleteDoc(ref('checkins', id)); },
       saveSettings: function (patch) { return F.setDoc(ref('settings', 'main'), patch, { merge: true }); },
