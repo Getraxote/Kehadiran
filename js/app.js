@@ -365,7 +365,7 @@
       }
       lsSet('tk_me', me.id);
     } catch (e) {
-      toast('Gagal menyimpan: ' + (e.code || e.message || e), true);
+      toast('Gagal menyimpan: ' + (e.code || e.message || e) + (e.code === 'permission-denied' ? ' — pastikan Rules terbaru sudah di-Publish, lalu muat ulang (Ctrl+F5)' : ''), true);
     } finally { sibuk = false; }
     render();
   }
@@ -723,7 +723,7 @@
     var s = cfg(), kata = s.orgName.split(' ');
     $('#brandName').innerHTML = kata.length > 1 ? E(kata[0]) + '<br>' + E(kata.slice(1).join(' ')) : E(s.orgName);
     $('#ftrBrand').innerHTML = ic('home') + ' ' + E(s.appName);
-    $('#ftrCopy').textContent = '© ' + new Date().getFullYear() + ' ' + s.orgName;
+    $('#ftrCopy').textContent = '© ' + new Date().getFullYear() + ' ' + s.orgName + ' · v3';
     $('#ftrAdmin').innerHTML = ic('shield') + ' Pengurus';
     $('#ftrAdmin').hidden = !isAdmin();
     $('#ftrMode').innerHTML = Store.mode === 'demo' ? '<span class="pill gold">Mode demo</span>' :
