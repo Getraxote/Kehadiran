@@ -1,6 +1,6 @@
 # Tanda Kehadiran — Yayasan Al-Kahfi
 
-Aplikasi web ringan (GitHub Pages + Firebase) untuk mencatat kehadiran perkumpulan: masuk dengan Google, tombol hadir aktif hanya di dalam radius GPS, QR Code cadangan, pencatatan "lagi ngapain", **peta kecil "Siapa di Sini"** dengan foto profil, papan apresiasi, rekap, dan ekspor Excel/CSV.
+Aplikasi web ringan (GitHub Pages + Firebase) untuk mencatat kehadiran perkumpulan: masuk dengan Google, tombol hadir aktif hanya di dalam radius GPS, QR Code cadangan, pencatatan "lagi ngapain", papan apresiasi, rekap, dan ekspor Excel/CSV.
 
 ## Isi folder
 
@@ -18,19 +18,11 @@ Aplikasi web ringan (GitHub Pages + Firebase) untuk mencatat kehadiran perkumpul
 ## Cara anggota memakai
 
 1. Buka alamat aplikasi → muncul pop-up **Masuk dengan Google**.
-2. Pertama kali: pop-up **Siapa namamu di sini?**. Anggota mengisi **nama panggilan sendiri**, mencentang persetujuan peta lokasi, lalu lanjut. Nama tidak boleh kembar dengan anggota lain. Foto profil Google otomatis menjadi ikon.
+2. Pertama kali: pop-up **Siapa namamu di sini?**. Anggota mengisi **nama panggilan sendiri**, lalu lanjut. Nama tidak boleh kembar. Foto profil Google otomatis menjadi ikon.
 3. Aktifkan lokasi (tekan **Cek Lokasi Saya**). Di dalam radius, tombol **Isi Tanda Kehadiran** aktif. Anggota memilih kegiatan, menulis catatan (opsional), lalu menekan tombol.
-4. Menu di pojok kanan atas (foto/nama): ubah nama panggilan, matikan "Tampilkan aku di peta", keluar.
+4. Menu di pojok kanan atas (foto/nama): ubah nama panggilan, keluar.
 
 Pengurus tidak perlu lagi mengetik daftar nama: anggota mendaftar sendiri. Pengurus bisa **menonaktifkan** (blokir absen) atau **menghapus** (reset profil) anggota di menu Pengurus.
-
-## Peta di "Siapa di Sini"
-
-- Menampilkan lingkaran radius dengan ikon (foto profil) setiap anggota yang **sedang berada di dalam radius**, menyalakan lokasi, dan membuka aplikasi.
-- Keluar radius, lokasi dimatikan/ditolak, aplikasi ditutup atau dikirim ke latar belakang → ikon hilang (maksimal ±75 detik).
-- Yang tersimpan di database hanya **jarak dari titik pusat dalam meter** (bukan koordinat GPS), di dokumen sementara `presence/{uid}` yang dihapus saat anggota pergi. Anggota bisa menyembunyikan diri kapan saja.
-- Latar peta memakai ubin OpenStreetMap (butuh internet). Tanpa internet, peta tetap tampil sebagai radar polos.
-- Batas teknis: browser tidak boleh melacak lokasi saat aplikasi ditutup atau layar terkunci, jadi pelacakan hanya berjalan selama aplikasi terbuka di HP anggota. Penggunaan: sekitar 3 tulis/menit per anggota yang sedang di radius; untuk puluhan anggota masih jauh di bawah kuota gratis.
 
 ## Mengubah lokasi, radius, dan kegiatan
 
@@ -71,7 +63,7 @@ Pengurus = akun Google yang emailnya ada di `adminEmails` (config.js) dan di `fi
 
 - Hanya akun Google yang bisa membaca data; pengunjung tanpa login tidak bisa. **Tetapi siapa pun yang punya akun Google dan tahu alamat aplikasi dapat mendaftar sendiri** dan melihat daftar kehadiran. Jangan sebar alamat sembarangan; pengurus bisa menonaktifkan/menghapus akun yang tidak dikenal. Jika perlu, kunci lebih ketat dengan persetujuan pengurus (belum dipasang; bisa ditambahkan).
 - Absen hanya bisa dilakukan atas nama akun sendiri (diperiksa aturan database), jadi tidak bisa mengisi untuk orang lain.
-- Pemeriksaan radius dilakukan di HP anggota sehingga bisa dipalsukan oleh yang paham teknis. Ini untuk mencegah salah klik, bukan melawan kecurangan. Hal yang sama berlaku untuk posisi di peta.
+- Pemeriksaan radius dilakukan di HP anggota sehingga bisa dipalsukan oleh yang paham teknis. Ini untuk mencegah salah klik, bukan melawan kecurangan. 
 - Hanya pengurus yang dapat menghapus catatan atau menonaktifkan anggota.
 
 ## Kuota gratis Firebase (Spark)
@@ -84,4 +76,4 @@ Naikkan angka `VERSION` di `sw.js` (`kehadiran-v2` → `kehadiran-v3`) supaya ca
 
 ## Mencoba tanpa Firebase
 
-Ubah `enabled: true` menjadi `enabled: false` di `js/config.js`. Mode demo: "Masuk (simulasi Google)", data contoh tersimpan di browser, anggota contoh muncul di peta, dan ada tombol simulasi "Di lokasi / Di luar" di panel GPS.
+Ubah `enabled: true` menjadi `enabled: false` di `js/config.js`. Mode demo: "Masuk (simulasi Google)", data contoh tersimpan di browser, dan ada tombol simulasi "Di lokasi / Di luar" di panel GPS.

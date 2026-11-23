@@ -79,23 +79,5 @@ service cloud.firestore {
       // Koreksi data salah: hanya pengurus.
       allow delete: if isAdmin();
     }
-
-    // Posisi sementara untuk peta "Siapa di Sini": meter dari titik lokasi, bukan koordinat GPS.
-    // Dokumen ditulis hanya oleh pemiliknya selama berada di dalam radius, dan dihapus saat keluar.
-    match /presence/{uid} {
-      allow read: if signedIn();
-
-      allow create, update: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nama', 'foto', 'dx', 'dy', 'acc', 't'])
-        && request.resource.data.nama is string && request.resource.data.nama.size() <= 40
-        && request.resource.data.foto is string && request.resource.data.foto.size() <= 500
-        && request.resource.data.dx is number && request.resource.data.dx > -2000 && request.resource.data.dx < 2000
-        && request.resource.data.dy is number && request.resource.data.dy > -2000 && request.resource.data.dy < 2000
-        && request.resource.data.acc is number
-        && request.resource.data.t == request.time;
-
-      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
-    }
   }
 }

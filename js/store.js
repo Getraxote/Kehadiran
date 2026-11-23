@@ -6,8 +6,7 @@
    Model data:
      members/{uid}   profil anggota (nama panggilan, foto Google). Dibuat sendiri oleh anggota.
      checkins/{tgl_uid}  satu catatan per anggota per hari.
-     presence/{uid}  posisi SEMENTARA (meter dari titik lokasi) selama anggota berada di dalam radius.
-                     Dihapus saat keluar radius / lokasi mati / aplikasi ditutup. */
+ */
 window.TKStore = (function () {
   'use strict';
   var CFG = window.TK_CONFIG, D = CFG.defaults, U = window.TKU;
@@ -17,7 +16,7 @@ window.TKStore = (function () {
     mode: CFG.enabled ? 'cloud' : 'demo',
     ready: false, authReady: false, membersLoaded: false,
     settings: null, settingsLoaded: false,
-    members: [], checkins: [], presence: [], user: null, profil: null, error: null, fromCache: false
+    members: [], checkins: [], user: null, profil: null, error: null, fromCache: false
   };
   var handlers = {};
   function on(ev, cb) { (handlers[ev] = handlers[ev] || []).push(cb); }
@@ -46,7 +45,7 @@ window.TKStore = (function () {
 
   /* =================== MESIN DEMO =================== */
   var demo = (function () {
-    var KEY = 'tk_demo_v2', UKEY = 'tk_demo_user', raw = null, saya = null;
+    var KEY = 'tk_demo_v2', UKEY = 'tk_demo_user', raw = null;
 
     function rng(seed) {   // mulberry32: acak yang bisa diulang
       return function () {
@@ -106,36 +105,19 @@ window.TKStore = (function () {
       };
     }
 
-    /* Anggota contoh yang sedang hadir "terlihat" di peta, bergerak pelan agar terasa hidup. */
-    function presenceContoh() {
-      var now = Date.now(), today = U.todayStr(), R = S.settings.radius || 100, out = [];
-      raw.members.forEach(function (m) {
-        if (!/^demo\d+$/.test(m.id)) return;
-        var c = raw.checkins[today + '_' + m.id];
-        if (!c || c.keluar != null) return;
-        var a = parseInt(m.id.slice(4), 10) * 2.399963 + Math.sin(now / 25000 + hash(m.id + 'x') * 6) * 0.25;   // sudut emas: tersebar merata
-        var rr = (0.3 + 0.55 * hash(m.id + 'r')) * R * (1 + 0.04 * Math.sin(now / 9000));
-        out.push({ id: m.id, nama: m.nama, foto: '', dx: Math.round(Math.cos(a) * rr), dy: Math.round(Math.sin(a) * rr), acc: 8, t: now });
-      });
-      return out;
-    }
     function muatUser() { try { return JSON.parse(localStorage.getItem(UKEY)); } catch (e) { return null; } }
     function load() {
       try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) { raw = null; }
       if (!raw || !raw.members) { raw = seed(); save(); }
     }
     function save() { try { localStorage.setItem(KEY, JSON.stringify(raw)); } catch (e) { console.warn(e); } }
-    function publikasiPresence() {
-      S.presence = S.user ? presenceContoh().concat(saya ? [saya] : []) : [];
-      emit('presence');
-    }
     function publish() {
       S.settings = gabung(raw.settings);
       S.settingsLoaded = true;
       S.members = raw.members.slice().sort(urutNama);
       S.checkins = Object.keys(raw.checkins).map(function (k) { return raw.checkins[k]; });
       hitungProfil();
-      emit('settings'); emit('members'); emit('checkins'); publikasiPresence();
+      emit('settings'); emit('members'); emit('checkins');
     }
     function init() {
       load();
@@ -143,7 +125,6 @@ window.TKStore = (function () {
       S.authReady = true; S.membersLoaded = true; S.ready = true;
       publish(); emit('auth');
       window.addEventListener('storage', function (e) { if (e.key === KEY) { load(); publish(); } });
-      setInterval(publikasiPresence, 15000);
       return Promise.resolve();
     }
     function mutate(fn) { fn(raw); save(); publish(); return Promise.resolve(); }
@@ -165,8 +146,6 @@ window.TKStore = (function () {
         return mutate(function (r) { r.members.forEach(function (m) { if (m.id === id) Object.assign(m, patch); }); });
       },
       deleteMember: function (id) { return mutate(function (r) { r.members = r.members.filter(function (m) { return m.id !== id; }); }); },
-      putPresence: function (rec) { saya = Object.assign({ id: S.user.uid, t: Date.now() }, rec); publikasiPresence(); return Promise.resolve(); },
-      delPresence: function () { saya = null; publikasiPresence(); return Promise.resolve(); },
       signIn: function () {
         S.user = { uid: 'demo-me', name: 'Pengguna Demo', email: 'demo@contoh.id', foto: '', isAdmin: true };
         try { localStorage.setItem(UKEY, JSON.stringify(S.user)); } catch (e) { /* abaikan */ }
@@ -174,11 +153,11 @@ window.TKStore = (function () {
       },
       signOut: function () {
         try { localStorage.removeItem(UKEY); } catch (e) { /* abaikan */ }
-        S.user = null; saya = null; publish(); emit('auth'); return Promise.resolve();
+        S.user = null; publish(); emit('auth'); return Promise.resolve();
       },
       reset: function () {
         localStorage.removeItem(KEY); localStorage.removeItem(UKEY);
-        S.user = null; saya = null; load(); publish(); emit('auth'); return Promise.resolve();
+        S.user = null; load(); publish(); emit('auth'); return Promise.resolve();
       }
     };
   })();
@@ -213,19 +192,12 @@ window.TKStore = (function () {
         S.fromCache = snap.metadata.fromCache;
         S.ready = true; S.error = null; emit('checkins');
       }, galat));
-      unsubs.push(F.onSnapshot(F.collection(db, 'presence'), function (snap) {
-        S.presence = snap.docs.map(function (d) {
-          var x = d.data({ serverTimestamps: 'estimate' });
-          return { id: d.id, nama: x.nama, foto: x.foto, dx: x.dx, dy: x.dy, acc: x.acc, t: x.t && x.t.toMillis ? x.t.toMillis() : (x.t || 0) };
-        });
-        emit('presence');
-      }, galat));
       readyTimer = setTimeout(function () { if (!S.ready) { S.ready = true; emit('checkins'); } }, 7000);
     }
     function lepas() {
       unsubs.forEach(function (f) { try { f(); } catch (e) { /* abaikan */ } });
       unsubs = []; clearTimeout(readyTimer);
-      S.members = []; S.checkins = []; S.presence = []; S.profil = null; S.membersLoaded = false; S.settingsLoaded = false;
+      S.members = []; S.checkins = []; S.profil = null; S.membersLoaded = false; S.settingsLoaded = false;
     }
 
     async function init() {
@@ -246,7 +218,7 @@ window.TKStore = (function () {
       Au.onAuthStateChanged(auth, function (u) {
         S.authReady = true;
         if (!u) {
-          lepas(); S.user = null; S.ready = true; emit('auth'); emit('members'); emit('presence');
+          lepas(); S.user = null; S.ready = true; emit('auth'); emit('members');
           return;
         }
         S.user = { uid: u.uid, name: u.displayName || u.email, email: (u.email || '').toLowerCase(), foto: u.photoURL || '', isAdmin: isAdminEmail(u.email) };
@@ -270,10 +242,6 @@ window.TKStore = (function () {
       },
       updateMember: function (id, patch) { return F.updateDoc(ref('members', id), patch); },
       deleteMember: function (id) { return F.deleteDoc(ref('members', id)); },
-      putPresence: function (rec) {
-        return F.setDoc(ref('presence', S.user.uid), Object.assign({}, rec, { t: F.serverTimestamp() }));
-      },
-      delPresence: function () { return S.user ? F.deleteDoc(ref('presence', S.user.uid)) : Promise.resolve(); },
       signIn: async function () {
         var p = new Au.GoogleAuthProvider();
         p.setCustomParameters({ prompt: 'select_account' });
@@ -294,7 +262,7 @@ window.TKStore = (function () {
   var engine = S.mode === 'cloud' ? cloud : demo;
   var api = { state: S, on: on, mode: S.mode };
   ['init', 'createCheckin', 'updateCheckin', 'deleteCheckin', 'saveSettings', 'saveProfil', 'updateMember', 'deleteMember',
-    'putPresence', 'delPresence', 'signIn', 'signOut', 'reset'].forEach(function (k) { api[k] = engine[k]; });
+    'signIn', 'signOut', 'reset'].forEach(function (k) { api[k] = engine[k]; });
   api.isAdmin = function () { return !!(S.user && S.user.isAdmin); };
   return api;
 })();

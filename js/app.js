@@ -382,7 +382,6 @@
       '<div style="flex:1;min-width:220px"><div style="display:flex;align-items:center;gap:10px"><span class="dot"></span><h2 style="font-size:30px">' + now.length + ' orang di ' + E(s.lokasiNama) + '</h2></div>' +
       (ringkas ? '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' + ringkas + '</div>' : '<p style="margin:6px 0 0;color:var(--muted)">Belum ada yang merapat.</p>') + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" data-act="ajak">' + ic('share') + ' Ajak Merapat</button><a class="btn ghost" href="#/hadir">Isi Kehadiran</a></div></div>';
-    body += '<div data-live="peta" style="margin-bottom:18px">' + petaCard() + '</div>';
     body += now.length ? '<div class="grid g3">' + now.map(kartuHadir).join('') + '</div>' :
       '<div class="card">' + kosong('users', 'Sepi dulu nih', 'Ajak teman-teman merapat lewat tombol di atas.') + '</div>';
     if (pulang.length) {
@@ -645,98 +644,15 @@
     render();
   }
 
-  /* ---------- PRESENCE & PETA ---------- */
-  var presLast = { on: false, t: 0, dx: 0, dy: 0 };
-  var PRESENCE_BASI = 75000;   // ikon hilang bila tidak diperbarui selama 75 detik
-  function bagikanAktif() { return lsGet('tk_bagikan') !== '0'; }
-  function hapusPresence() {
-    if (!presLast.on) return;
-    presLast.on = false;
-    try { Promise.resolve(Store.delPresence()).catch(function () {}); } catch (e) { /* abaikan */ }
-  }
-  /* Posisi hanya dibagikan selama: login + profil aktif + GPS menyala + berada di DALAM radius + pengguna mengizinkan.
-     Di luar itu (keluar radius, lokasi mati/ditolak, aplikasi ditutup) dokumen presence dihapus. */
-  function sinkronPresence(paksa) {
-    if (!S.user || !S.profil) return;
-    var g = geoInfo(), dalam = g.st === 'ok' && g.inside && bagikanAktif() && S.profil.aktif !== false;
-    if (!dalam) { hapusPresence(); return; }
-    var p = posisiEfektif(), s = cfg();
-    if (!p) return;
-    var dx = (p.lng - s.lng) * 111320 * Math.cos(s.lat * Math.PI / 180), dy = (p.lat - s.lat) * 110574;
-    var now = Date.now(), gerak = Math.hypot(dx - presLast.dx, dy - presLast.dy), lama = now - presLast.t;
-    if (presLast.on && !paksa && !(gerak > 5 && lama > 8000) && lama < 20000) return;
-    presLast = { on: true, t: now, dx: dx, dy: dy };
-    Promise.resolve(Store.putPresence({ nama: S.profil.nama, foto: (S.user.foto || '').slice(0, 480), dx: Math.round(dx), dy: Math.round(dy), acc: Math.round(p.acc || 0) }))
-      .catch(function (e) { presLast.on = false; console.warn('presence', e); });
-  }
-  function presenceAktif() {
-    var R = cfg().radius || 100, now = Date.now();
-    return S.presence.filter(function (x) {
-      return now - x.t < PRESENCE_BASI && isFinite(x.dx) && isFinite(x.dy) && Math.hypot(x.dx, x.dy) <= R * 1.15;
-    });
-  }
-  /* Peta kecil: ubin OpenStreetMap di belakang, radius & ikon anggota di depan. Posisi dalam meter -> persen. */
-  function petaMatematika(s) {
-    var Vm = Math.max(s.radius * 2.5, 60), rad = Math.PI / 180, cos = Math.cos(s.lat * rad);
-    var z = Math.max(1, Math.min(19, Math.floor(Math.log(40075016.686 * cos / (Vm / 2)) / Math.LN2)));
-    var n = Math.pow(2, z), mpp = 40075016.686 * cos / (256 * n);
-    var sinL = Math.sin(s.lat * rad);
-    var cx = (s.lng + 180) / 360 * n * 256, cy = (0.5 - Math.log((1 + sinL) / (1 - sinL)) / (4 * Math.PI)) * n * 256;
-    return { Vm: Vm, z: z, n: n, mpp: mpp, cx: cx, cy: cy };
-  }
-  function ubin(s) {
-    var m = petaMatematika(s), half = m.Vm / 2 / m.mpp, out = '';
-    for (var ty = Math.floor((m.cy - half) / 256); ty <= Math.floor((m.cy + half) / 256); ty++) {
-      for (var tx = Math.floor((m.cx - half) / 256); tx <= Math.floor((m.cx + half) / 256); tx++) {
-        if (tx < 0 || ty < 0 || tx >= m.n || ty >= m.n) continue;
-        out += '<img class="tl" data-fb="1" alt="" loading="lazy" referrerpolicy="origin" src="https://tile.openstreetmap.org/' + m.z + '/' + tx + '/' + ty + '.png" style="left:' +
-          (50 + (tx * 256 - m.cx) * m.mpp / m.Vm * 100).toFixed(3) + '%;top:' + (50 + (ty * 256 - m.cy) * m.mpp / m.Vm * 100).toFixed(3) +
-          '%;width:' + (256 * m.mpp / m.Vm * 100).toFixed(3) + '%;height:' + (256 * m.mpp / m.Vm * 100).toFixed(3) + '%">';
-      }
-    }
-    return out;
-  }
-  function petaCard() {
-    var s = cfg();
-    if (s.lat == null || s.lng == null) {
-      return '<div class="card">' + kosong('pin', 'Titik lokasi belum diatur', 'Peta muncul setelah koordinat diisi di <code>js/config.js</code>.') + '</div>';
-    }
-    var Vm = Math.max(s.radius * 2.5, 60), list = presenceAktif(), uid = S.user && S.user.uid, g = geoInfo();
-    var marks = list.map(function (x) {
-      var kiri = 50 + x.dx / Vm * 100, atas = 50 - x.dy / Vm * 100, saya = x.id === uid;
-      return '<div class="mk' + (saya ? ' me' : '') + '" style="left:' + kiri.toFixed(2) + '%;top:' + atas.toFixed(2) + '%" title="' + E(x.nama) + '">' +
-        av(x.nama, 'sm', x.id, x.foto) + '<i>' + E(saya ? 'Kamu' : x.nama.split(' ')[0]) + '</i></div>';
-    }).join('');
-    var peta = '<div class="peta" role="img" aria-label="Peta posisi anggota di dalam radius ' + s.radius + ' meter"><div class="tiles">' + ubin(s) + '</div>' +
-      '<div class="ring" style="width:' + (s.radius * 2 / Vm * 100).toFixed(2) + '%;height:' + (s.radius * 2 / Vm * 100).toFixed(2) + '%"></div>' +
-      '<div class="pusat" title="' + E(s.lokasiNama) + '">' + ic('pin') + '</div>' + marks +
-      '<span class="u">U ↑</span><span class="skala">radius ' + s.radius + ' m</span><span class="attr">© OpenStreetMap</span></div>';
-    var daftar = list.length ? list.slice().sort(function (a, b) { return Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy); }).map(function (x) {
-      return '<div class="bd" style="align-items:center">' + av(x.nama, 'sm', x.id, x.foto) + '<div><b>' + E(x.nama) + (x.id === uid ? ' <span class="tag g">kamu</span>' : '') + '</b><br><small style="color:var(--muted)">' +
-        Math.round(Math.hypot(x.dx, x.dy)) + ' m dari titik pusat</small></div></div>';
-    }).join('') : '<p style="color:var(--muted);margin:4px 0 0">Belum ada yang terlihat di peta.</p>';
-    var status = '';
-    if (S.user) {
-      if (!bagikanAktif()) status = '<div class="banner info">' + ic('info') + '<div>Kamu menyembunyikan diri dari peta.</div></div>';
-      else if (g.st === 'ok' && g.inside) status = '<div class="banner ok">' + ic('pin') + '<div>Posisimu tampil di peta selama kamu di dalam radius.</div></div>';
-      else if (g.st === 'ok') status = '<div class="banner warn">' + ic('pin') + '<div>Kamu di luar radius, jadi ikonmu tidak tampil dan tidak dilacak.</div></div>';
-      else status = '<div class="banner warn">' + ic('locate') + '<div>Lokasi belum menyala, jadi ikonmu tidak tampil. <button class="btn sm ghost" data-act="geo-start" style="margin-left:6px">Nyalakan</button></div></div>';
-    }
-    return '<div class="peta-wrap"><div class="card" style="padding:12px">' + peta + '</div><div class="card"><h3 style="font-size:22px;margin-bottom:6px">Terlihat di peta <span class="tag g">' + list.length + '</span></h3>' +
-      status + daftar +
-      '<label class="cek" style="margin-top:12px"><input type="checkbox" data-act="toggle-bagikan"' + (bagikanAktif() ? ' checked' : '') + '><span>Tampilkan aku di peta</span></label>' +
-      '<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Hanya anggota yang berada dalam radius ' + s.radius + ' m, menyalakan lokasi, dan membuka aplikasi yang muncul. Keluar radius, mematikan lokasi, atau menutup aplikasi → ikon hilang dalam ±1 menit. Yang disimpan hanya jarak dari titik pusat, bukan koordinat GPS, dan dihapus saat kamu pergi.</p></div></div>';
-  }
-
   /* ---------- MASUK, PROFIL, MENU PENGGUNA ---------- */
   var gateKey = '', usrSig = '';
   var G_LOGO = '<svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
   function loginHTML() {
     var s = cfg(), demo = Store.mode === 'demo';
     return '<div class="gate-card" role="dialog" aria-modal="true" aria-labelledby="gt"><img class="gate-logo" src="assets/logo.png" alt="" width="72" height="72">' +
-      '<h2 id="gt">Masuk dulu, yuk</h2><p>Masuk dengan akun Google untuk mengisi kehadiran di <b>' + E(s.orgName) + '</b>. Kamu akan menentukan nama panggilanmu sendiri, dan foto profil Google jadi ikonmu di peta <i>Siapa di Sini</i>.</p>' +
+      '<h2 id="gt">Masuk dulu, yuk</h2><p>Masuk dengan akun Google untuk mengisi kehadiran di <b>' + E(s.orgName) + '</b>. Kamu akan menentukan nama panggilanmu sendiri, dan foto profil Google jadi ikonmu.</p>' +
       '<button class="btn lg block gbtn" data-act="masuk-google">' + G_LOGO + (demo ? ' Masuk (simulasi Google)' : ' Masuk dengan Google') + '</button>' +
-      '<p class="kecil">Lokasimu hanya dibagikan ke peta selama kamu berada dalam radius ' + s.radius + ' m dari ' + E(s.lokasiNama) + ', dan bisa dimatikan kapan saja.</p></div>';
+      '</div>';
   }
   function profilHTML(edit) {
     var u = S.user, m = S.profil, s = cfg();
@@ -745,7 +661,6 @@
       '<h2 id="gt">' + (edit ? 'Ubah nama panggilan' : 'Siapa namamu di sini?') + '</h2>' +
       '<p>' + (edit ? '' : 'Halo' + (u.name ? ', ' + E(u.name.split(' ')[0]) : '') + '! ') + 'Nama panggilan ini tampil di Siapa di Sini, papan apresiasi, dan rekap.</p>' +
       '<div class="fld" style="text-align:left"><label for="pf-nama">Nama panggilan</label><input type="text" id="pf-nama" maxlength="30" value="' + E(nama) + '" autocomplete="nickname"></div>' +
-      (edit ? '' : '<label class="cek" style="text-align:left"><input type="checkbox" id="pf-setuju"><span>Saya paham foto dan posisi saya tampil di peta “Siapa di Sini” <b>hanya selama saya berada dalam radius ' + s.radius + ' m</b> dari ' + E(s.lokasiNama) + ' dan aplikasi terbuka. Saya bisa mematikannya kapan saja.</span></label>') +
       '<p class="galat" id="pf-err" role="alert"></p>' +
       '<div class="two" style="margin-top:6px">' + (edit ? '<button class="btn ghost" data-act="batal-profil">Batal</button>' : '<button class="btn ghost" data-act="keluar">Keluar</button>') +
       '<button class="btn" data-act="simpan-profil">' + (edit ? 'Simpan' : 'Simpan & lanjut') + '</button></div></div>';
@@ -768,7 +683,6 @@
     if (S.members.some(function (m) { return m.id !== S.user.uid && m.nama.toLowerCase() === nama.toLowerCase(); })) {
       err.textContent = 'Nama itu sudah dipakai anggota lain. Tambahkan inisial atau nama belakang.'; return;
     }
-    if (baru && !$('#pf-setuju').checked) { err.textContent = 'Centang persetujuan peta lokasi dulu ya.'; return; }
     try {
       await Store.saveProfil(nama);
       ui.editProfil = false; toast(baru ? 'Selamat datang, ' + nama + '!' : 'Nama diperbarui.'); render();
@@ -782,7 +696,7 @@
   }
   function chipUser(paksa) {
     var u = S.user, m = S.profil, el = $('#usr');
-    var sig = [u && u.uid, m && m.nama, u && u.foto, bagikanAktif(), isAdmin()].join('|');
+    var sig = [u && u.uid, m && m.nama, u && u.foto, isAdmin()].join('|');
     if (sig === usrSig && !paksa) return;
     usrSig = sig;
     if (!u) { el.innerHTML = ''; ui.menu = false; return; }
@@ -791,7 +705,6 @@
       '<span class="un">' + E(nama.split(' ')[0]) + '</span></button>' +
       '<div class="umenu" id="umenu"' + (ui.menu ? '' : ' hidden') + '><div class="uh"><b>' + E(nama) + '</b><small>' + E(u.email || '') + '</small></div>' +
       '<button data-act="ubah-profil">' + ic('pencil') + ' Ubah nama panggilan</button>' +
-      '<label class="cek"><input type="checkbox" data-act="toggle-bagikan"' + (bagikanAktif() ? ' checked' : '') + '><span>Tampilkan aku di peta</span></label>' +
       (isAdmin() ? '<a href="#/pengurus">' + ic('shield') + ' Pengurus</a>' : '') +
       '<button data-act="keluar">' + ic('out') + ' Keluar</button></div>';
   }
@@ -858,9 +771,7 @@
     if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && $('#view').contains(a)) { tertunda = true; pasangKerangka(); return; }
     render();
   }
-  function paintLive(tanpaSinkron) {
-    if (!tanpaSinkron) sinkronPresence();
-    $$('[data-live="peta"]').forEach(function (el) { el.innerHTML = petaCard(); });
+  function paintLive() {
     $$('[data-live="gps"]').forEach(function (el) { el.innerHTML = panelGps(); });
     $$('[data-live="cta"]').forEach(function (el) {
       el.innerHTML = ctaHero() + '<a class="btn ghost light" href="#/siapa">' + ic('users') + ' Siapa di sini (' + sedangHadir().length + ')</a>';
@@ -874,17 +785,16 @@
     var el = ev.target.closest('[data-act]');
     if (!el) return;
     var a = el.dataset.act, v = el.dataset.v, id = el.dataset.id, d = ui.draft, s = cfg();
-    if (ui.menu && a !== 'menu-user' && a !== 'toggle-bagikan') setMenu(false);
+    if (ui.menu && a !== 'menu-user') setMenu(false);
     switch (a) {
       case 'geo-start': geoMulai(); break;
       case 'sim': Geo.sim = v; lsSet('tk_sim', v); if (v === 'off') { Geo.state = 'idle'; geoMulai(); } else { Geo.state = 'ok'; paintLive(); } break;
       case 'masuk-google': Store.signIn().catch(function (e) { toast('Gagal masuk: ' + (e.code || e.message), true); }); break;
-      case 'keluar': setMenu(false); hapusPresence(); Promise.resolve(Store.delPresence()).catch(function () {}).then(function () { return Store.signOut(); }).then(function () { d._init = false; ui.editProfil = false; render(); }); break;
+      case 'keluar': setMenu(false); Promise.resolve(Store.signOut()).then(function () { d._init = false; ui.editProfil = false; render(); }); break;
       case 'ubah-profil': setMenu(false); ui.editProfil = true; renderGate(); break;
       case 'batal-profil': ui.editProfil = false; renderGate(); break;
       case 'simpan-profil': simpanProfil(); break;
       case 'menu-user': setMenu(!ui.menu); break;
-      case 'toggle-bagikan': lsSet('tk_bagikan', el.checked ? '1' : '0'); if (!el.checked) hapusPresence(); else sinkronPresence(); paintLive(true); chipUser(true); break;
       case 'pilih-kegiatan': d.aktivitas = v; render(); if (v === '__lain') { var l = $('#lain'); if (l) l.focus(); } break;
       case 'absen': simpanAbsen('absen'); break;
       case 'update': simpanAbsen('update'); break;
@@ -981,29 +891,9 @@
   })();
 
   ['settings', 'members', 'checkins', 'auth'].forEach(function (ev) { Store.on(ev, jadwalkanRender); });
-  Store.on('presence', function () { paintLive(true); });
-  Store.on('auth', function () { presLast.on = false; });
-  Store.on('members', function () { sinkronPresence(); });
-  // Foto/ubin yang gagal dimuat dibuang (inisial atau latar radar tetap terlihat).
+  // Foto yang gagal dimuat dibuang (inisial tetap terlihat).
   document.addEventListener('error', function (e) { var t = e.target; if (t && t.tagName === 'IMG' && t.dataset.fb) t.remove(); }, true);
-  // Aplikasi disembunyikan / ditutup -> posisi tidak lagi dibagikan.
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden') hapusPresence();
-    else if (Geo.sim === 'off' && (Geo.state === 'ok' || Geo.state === 'locating')) geoMulai();
-    else sinkronPresence();
-  });
-  window.addEventListener('pagehide', hapusPresence);
-  // Detak 20 detik: perbarui posisi (saat diam, watchPosition bisa tidak memanggil balik) dan segarkan peta agar ikon basi hilang.
-  setInterval(function () {
-    if (!S.user || !S.profil) return;
-    if (Geo.sim === 'off' && Geo.state === 'ok' && document.visibilityState === 'visible' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(function (p) {
-        Geo.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy || 0, ts: Date.now() };
-        paintLive(); sinkronPresence(true);
-      }, function (e) { if (e.code === 1) { Geo.state = 'denied'; paintLive(); } }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 12000 });
-    } else if (document.visibilityState === 'visible') sinkronPresence(true);
-    paintLive(true);
-  }, 20000);
+
   Store.on('error', function () { pasangKerangka(); if (!S.ready) { S.ready = true; } jadwalkanRender(); });
   var qrDicek = false;
   Store.on('settings', function () {
