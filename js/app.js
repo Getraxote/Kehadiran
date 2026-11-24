@@ -94,6 +94,22 @@
     return ev.sort(function (a, b) { return b.t - a.t; }).slice(0, n);
   }
   function isAdmin() { return Store.isAdmin(); }
+  /* Rekap & papan apresiasi bulan berjalan dirahasiakan dari anggota sampai tanggal 1 bulan berikutnya. */
+  function terkunci() { return !isAdmin(); }
+  function batasData() { return U.periode('lalu').sampai; }
+  function bulanDepanNama() {
+    var t = U.todayStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
+    return U.bulan((m === 12 ? (y + 1) + '-01' : y + '-' + U.pad2(m + 1)) + '-01').split(' ')[0];
+  }
+  function adaDataLalu() { var P = U.periode('lalu'); return S.checkins.some(function (c) { return c.tanggal >= P.dari && c.tanggal <= P.sampai; }); }
+  function bannerKunci() {
+    var lalu = U.bulan(U.periode('lalu').dari).split(' ')[0], ini = U.bulan(U.todayStr()).split(' ')[0];
+    var tmb = adaDataLalu() ? ' <button class="btn sm soft" data-act="putar-reveal" data-v="lalu" style="margin-top:8px">Putar ulang kejutan ' + E(lalu) + '</button>' : '';
+    if (terkunci()) {
+      return '<div class="banner info" style="margin-bottom:16px">' + ic('info') + '<div><b>Hasil ' + E(ini) + ' masih rahasia.</b><br>Dibuka tanggal 1 ' + E(bulanDepanNama()) + '. Yang tampil di sini adalah hasil ' + E(lalu) + '.' + tmb + '</div></div>';
+    }
+    return '<div class="banner info" style="margin-bottom:16px">' + ic('shield') + '<div><b>Tampilan pengurus.</b><br>Anggota hanya melihat hasil bulan lalu sampai tanggal 1 ' + E(bulanDepanNama()) + '.' + tmb + '</div></div>';
+  }
   function salamWaktu() {
     var h = new Date().getHours();
     return h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
@@ -259,7 +275,7 @@
           '<small>' + U.hariRel(f.tanggal) + ', ' + U.jam(f.t) + (f.catatan ? ' — ' + E(f.catatan) : '') + '</small></div></div>';
       }).join('') + '</div>' : kosong('cal', 'Belum ada kegiatan', 'Kegiatan akan muncul di sini setelah ada yang hadir.')) + '</div></div>' +
       '<div><div class="sec-h"><div><h2>Apresiasi ' + U.bulan(today).split(' ')[0] + '</h2><span class="uline"></span></div><a href="#/apresiasi">Papan →</a></div>' +
-      '<div class="card">' + (rank.length ? '<ul class="list-ic">' + rank.map(function (r, i) {
+      '<div class="card">' + (terkunci() ? kosong('trophy', 'Papan bulan ini dirahasiakan', 'Dibuka tanggal 1 ' + E(bulanDepanNama()) + ', lengkap dengan kejutan. Terus hadir, ya.') : rank.length ? '<ul class="list-ic">' + rank.map(function (r, i) {
         return '<li><span class="ic">' + (i + 1) + '</span><span>' + E(r.nama) + '<small>' + r.hadir + ' kali hadir' + (r.streak > 1 ? ' · ' + r.streak + ' pekan beruntun' : '') + '</small></span><span class="r">' + r.poin + '</span></li>';
       }).join('') + '</ul>' : kosong('trophy', 'Papan masih kosong', 'Poin pertama bulan ini menunggumu.')) + '</div></div></section></div>';
   }
@@ -293,10 +309,7 @@
       d.catatan = m.catatan || ''; d._init = true;
     }
     if (ui.selesai && ui.selesai.memberId === d.memberId && Date.now() - ui.selesai.ts < 25000) {
-      var P = U.periode('bulan');
-      var st = U.hitungStatistik(S.checkins, s, P.dari, P.sampai).filter(function (x) { return x.memberId === d.memberId; })[0];
-      kiri += '<div class="banner ok">' + ic('checkc') + '<div><b>Tercatat! Terima kasih, ' + E(me ? me.nama.split(' ')[0] : '') + '.</b><br>' +
-        (st ? 'Poinmu bulan ini <b>' + st.poin + '</b>' + (st.streak ? ' · streak ' + st.streak + ' pekan' : '') + '.' : '') + '</div></div>';
+      kiri += '<div class="banner ok">' + ic('checkc') + '<div><b>Tercatat! Terima kasih, ' + E(me ? me.nama.split(' ')[0] : '') + '.</b><br>Sampai jumpa di kejutan akhir bulan.</div></div>';
     }
     if (qrSah()) kiri += '<div class="banner info">' + ic('qr') + '<div>Terverifikasi lewat <b>QR Code</b> di lokasi.</div></div>';
     if (m) {
@@ -312,7 +325,7 @@
       '<button class="chip" data-act="pilih-kegiatan" data-v="__lain" aria-pressed="' + (d.aktivitas === '__lain') + '">Lainnya…</button></div>' +
       (d.aktivitas === '__lain' ? '<div class="fld" style="margin-top:10px"><input type="text" id="lain" maxlength="60" data-k="lain" value="' + E(d.lain) + '" placeholder="Tulis kegiatanmu" aria-label="Kegiatan lainnya"></div>' : '');
 
-    kiri += '<div class="step" style="margin-top:22px"><b>2</b><h3>Catatan kontribusi <small style="font:400 13px var(--body);color:var(--muted)">(opsional, +' + s.poin.catatan + ' poin)</small></h3></div>' +
+    kiri += '<div class="step" style="margin-top:22px"><b>2</b><h3>Catatan kontribusi <small style="font:400 13px var(--body);color:var(--muted)">(opsional, ada harganya)</small></h3></div>' +
       '<div class="fld"><textarea id="catatan" maxlength="280" data-k="catatan" placeholder="Contoh: membantu menyusun jadwal santunan anak yatim" aria-label="Catatan kontribusi">' + E(d.catatan) + '</textarea></div>' +
       '<div data-live="submit">' + tombolKirim() + '</div>';
 
@@ -320,7 +333,7 @@
       '<div class="card" style="margin-top:18px"><h3 style="font-size:20px;margin-bottom:8px">Cara kerjanya</h3>' +
       '<div class="bd">' + ic('locate') + '<div>Tombol hanya aktif bila GPS HP-mu berada dalam radius <b>' + s.radius + ' m</b> dari ' + E(s.lokasiNama) + '.</div></div>' +
       (s.qrAktif ? '<div class="bd">' + ic('qr') + '<div>GPS susah di dalam ruangan? Scan <b>QR Code</b> yang ditempel di lokasi dengan kamera HP.</div></div>' : '') +
-      '<div class="bd">' + ic('trophy') + '<div>Setiap kehadiran bernilai <b>+' + s.poin.hadir + ' poin</b>. Hadir beberapa pekan berturut-turut menambah bonus.</div></div></div>';
+      '<div class="bd">' + ic('trophy') + '<div>Setiap kehadiran dihargai. Hadir berpekan-pekan berturut-turut ada kejutannya.</div></div></div>';
     return pageHead('Isi Tanda Kehadiran', 'Pastikan kamu ada di area ' + E(s.lokasiNama) + ', lalu ceritakan kegiatanmu.') +
       '<div class="wrap page-body"><div class="cols"><div class="card">' + kiri + '</div><div>' + kanan + '</div></div></div>';
   }
@@ -405,10 +418,14 @@
 
   /* ---------- APRESIASI ---------- */
   function apresiasi() {
-    var s = cfg(), P = U.periode(ui.periode);
-    var stat = U.hitungStatistik(S.checkins, s, P.dari, P.sampai);
+    var s = cfg(), kunci = terkunci();
+    if (kunci && ui.periode !== 'lalu' && ui.periode !== 'semua') ui.periode = 'lalu';
+    var P = U.periode(ui.periode), potong = kunci || ui.periode === 'lalu', batas = batasData();
+    if (potong && P.sampai > batas) P = { dari: P.dari, sampai: batas, label: P.label };
+    var data = potong ? S.checkins.filter(function (c) { return c.tanggal <= batas; }) : S.checkins;
+    var stat = U.hitungStatistik(data, s, P.dari, P.sampai, potong ? batas : undefined);
     var urut = U.urutkan(stat.filter(function (x) { return x.poin > 0; }));
-    var tabs = [['bulan', 'Bulan ini'], ['30', '30 hari'], ['semua', 'Semua']].map(function (t) {
+    var tabs = (kunci ? [['lalu', 'Bulan lalu'], ['semua', 'Semua']] : [['bulan', 'Bulan ini'], ['lalu', 'Bulan lalu'], ['30', '30 hari'], ['semua', 'Semua']]).map(function (t) {
       return '<button role="tab" data-act="periode" data-v="' + t[0] + '" aria-selected="' + (ui.periode === t[0]) + '">' + t[1] + '</button>';
     }).join('');
     var top = urut.slice(0, 3);
@@ -428,31 +445,41 @@
       var b = stat.slice().sort(function (a, c) { return f(c) - f(a) || a.nama.localeCompare(c.nama); })[0];
       return b && f(b) > 0 ? '<div class="award"><div class="ic">' + ic(ikon) + '</div><div><small>' + label + '</small><b>' + E(b.nama) + '</b> <span class="tag">' + f(b) + ' ' + sat + '</span></div></div>' : '';
     }
-    var awards = terbaik(function (x) { return x.hadir; }, 'Paling rajin', 'star', 'kali hadir') +
-      terbaik(function (x) { return x.streak; }, 'Streak pekan terpanjang (saat ini)', 'flame', 'pekan') +
-      terbaik(function (x) { return x.catatan; }, 'Paling rajin mencatat kontribusi', 'pencil', 'catatan');
+    var awards = terbaik(function (x) { return x.hadir; }, 'Paling sering terlihat', 'star', 'kali hadir') +
+      terbaik(function (x) { return x.streak; }, 'Paling betah', 'flame', 'pekan') +
+      terbaik(function (x) { return x.catatan; }, 'Juru tulis bulan ini', 'pencil', 'catatan');
 
-    var info = '<div class="card"><h3 style="font-size:20px;margin-bottom:6px">Cara dapat poin</h3>' +
-      '<div class="bd">' + ic('check') + '<div>Hadir: <b>+' + s.poin.hadir + '</b> per hari</div></div>' +
-      '<div class="bd">' + ic('pencil') + '<div>Mengisi catatan kontribusi: <b>+' + s.poin.catatan + '</b></div></div>' +
-      '<div class="bd">' + ic('flame') + '<div>Streak: hadir minimal sekali di pekan berturut-turut, bonus <b>+' + s.poin.streakBonus + '</b> × pekan ke-n (maks ' + s.poin.streakMaks + 'x)</div></div>' +
+    var info = '<div class="card"><h3 style="font-size:20px;margin-bottom:6px">Soal poin</h3>' +
+      '<p style="margin:0;color:var(--muted)">Hadir, bercerita, dan konsisten itu dihargai. Rumus lengkapnya sengaja dirahasiakan; yang jelas, yang rajin tidak akan dirugikan.</p>' +
       '<p style="color:var(--muted);font-size:13px;margin:10px 0 0">Papan ini untuk saling mengapresiasi, bukan untuk menghukum yang berhalangan hadir.</p></div>';
-    var lencana = '<div class="card" style="margin-top:18px"><h3 style="font-size:20px;margin-bottom:6px">Lencana</h3>' + U.LENCANA.map(function (l) {
+    var mine = stat.filter(function (x) { return x.memberId === meId; })[0];
+    var punya = mine ? mine.lencana : [];
+    var lencana = '<div class="card" style="margin-top:18px"><h3 style="font-size:20px;margin-bottom:6px">Lencanamu</h3>' + (punya.length ? punya.map(function (k) {
+      var l = U.LENCANA.filter(function (x) { return x.k === k; })[0];
       return '<div class="bd"><span class="lenc"><span>' + ic(l.ikon) + '</span></span><div><b>' + l.nama + '</b><br><small style="color:var(--muted)">' + l.ket + '</small></div></div>';
-    }).join('') + '</div>';
+    }).join('') : '<p style="margin:0;color:var(--muted)">Belum ada yang terbuka.</p>') +
+      (U.LENCANA.length - punya.length > 0 ? '<div class="bd" style="opacity:.6"><span class="lenc"><span>?</span></span><div><b>' + (U.LENCANA.length - punya.length) + ' lencana masih tersembunyi</b><br><small style="color:var(--muted)">Teruslah datang, siapa tahu.</small></div></div>' : '') + '</div>';
 
     return pageHead('Papan Apresiasi', 'Terima kasih untuk semua yang sudah meramaikan ' + E(s.orgName) + '. Poin dan streak dihitung otomatis dari kehadiran.') +
-      '<div class="wrap page-body"><div class="tabs" role="tablist" style="margin-bottom:16px">' + tabs + '</div>' +
+      '<div class="wrap page-body">' + bannerKunci() + '<div class="tabs" role="tablist" style="margin-bottom:16px">' + tabs + '</div>' +
       '<div class="cols"><div>' + pod + daftar + '</div><div>' +
       (awards ? '<div class="card" style="margin-bottom:18px"><h3 style="font-size:20px;margin-bottom:4px">Penghargaan · ' + P.label + '</h3>' + awards + '</div>' : '') + info + lencana + '</div></div></div>';
   }
 
   /* ---------- REKAP ---------- */
+  function initRekap() {
+    var f = ui.rekap, today = U.todayStr(), L = U.periode('lalu');
+    if (!f.dari) { if (terkunci()) { f.dari = L.dari; f.sampai = L.sampai; } else { f.dari = today.slice(0, 8) + '01'; f.sampai = today; } }
+    if (terkunci()) {
+      if (f.sampai > L.sampai) f.sampai = L.sampai;
+      if (f.dari > L.sampai) f.dari = L.dari;
+    }
+    return f;
+  }
   function rekapRows() {
-    var f = ui.rekap, today = U.todayStr();
-    if (!f.dari) { f.dari = today.slice(0, 8) + '01'; f.sampai = today; }
+    var f = initRekap(), batas = batasData(), kunci = terkunci();
     return S.checkins.filter(function (c) {
-      return c.tanggal >= f.dari && c.tanggal <= f.sampai && (!f.member || c.memberId === f.member) &&
+      return (!kunci || c.tanggal <= batas) && c.tanggal >= f.dari && c.tanggal <= f.sampai && (!f.member || c.memberId === f.member) &&
         (!f.kegiatan || (c.riwayat || []).some(function (r) { return r.a === f.kegiatan; }) || c.aktivitas === f.kegiatan);
     }).sort(function (a, b) { return a.tanggal < b.tanggal ? 1 : a.tanggal > b.tanggal ? -1 : b.masuk - a.masuk; });
   }
@@ -472,18 +499,16 @@
     }).sort(function (a, b) { return b.hadir - a.hadir || a.nama.localeCompare(b.nama); });
   }
   function rekap() {
-    var f = ui.rekap, s = cfg(), today = U.todayStr();
-    if (!f.dari) { f.dari = today.slice(0, 8) + '01'; f.sampai = today; }
+    var f = initRekap(), s = cfg();
     var rows = rekapRows(), ang = ringkasAnggota(rows);
     var hari = {}; rows.forEach(function (c) { (hari[c.tanggal] = hari[c.tanggal] || []).push(c); });
     var tglList = Object.keys(hari).sort().reverse();
     var kegiatanOpsi = s.kategori.slice();
-    S.checkins.forEach(function (c) { (c.riwayat || []).forEach(function (r) { if (r.a && kegiatanOpsi.indexOf(r.a) < 0) kegiatanOpsi.push(r.a); }); });
     var admin = isAdmin();
 
     var filter = '<div class="card" style="margin-bottom:18px"><div class="filters">' +
-      '<div class="fld"><label for="f-dari">Dari</label><input type="date" id="f-dari" data-k="rekap.dari" value="' + f.dari + '"></div>' +
-      '<div class="fld"><label for="f-sampai">Sampai</label><input type="date" id="f-sampai" data-k="rekap.sampai" value="' + f.sampai + '"></div>' +
+      '<div class="fld"><label for="f-dari">Dari</label><input type="date" id="f-dari" data-k="rekap.dari"' + (terkunci() ? ' max="' + batasData() + '"' : '') + ' value="' + f.dari + '"></div>' +
+      '<div class="fld"><label for="f-sampai">Sampai</label><input type="date" id="f-sampai" data-k="rekap.sampai"' + (terkunci() ? ' max="' + batasData() + '"' : '') + ' value="' + f.sampai + '"></div>' +
       '<div class="fld"><label for="f-m">Anggota</label><select id="f-m" data-k="rekap.member"><option value="">Semua anggota</option>' +
       S.members.map(function (m) { return '<option value="' + E(m.id) + '"' + (f.member === m.id ? ' selected' : '') + '>' + E(m.nama) + '</option>'; }).join('') + '</select></div>' +
       '<div class="fld"><label for="f-k">Kegiatan</label><select id="f-k" data-k="rekap.kegiatan"><option value="">Semua kegiatan</option>' +
@@ -524,7 +549,7 @@
         }).join('') + '</tbody></table></div>' + (rows.length > batas ? '<p class="empty">Menampilkan ' + batas + ' dari ' + rows.length + ' baris. Ekspor untuk data lengkap.</p>' : '');
     }
     return pageHead('Rekap Kehadiran', 'Riwayat siapa saja yang hadir pada setiap tanggal. Data dimuat ' + (window.TK_CONFIG.defaults.riwayatHari) + ' hari terakhir.') +
-      '<div class="wrap page-body">' + filter + tiles + tabs + isi + '</div>';
+      '<div class="wrap page-body">' + bannerKunci() + filter + tiles + tabs + isi + '</div>';
   }
   function barisEkspor() {
     return rekapRows().slice().sort(function (a, b) { return a.tanggal < b.tanggal ? -1 : a.tanggal > b.tanggal ? 1 : a.masuk - b.masuk; });
@@ -627,6 +652,8 @@
 
     var data = '<section class="card asec" id="a-data"><h2>' + ic('sheet') + ' Data & ekspor</h2><p class="d">Unduh rekap kehadiran. Rentang tanggal dan filter diatur di halaman Rekap.</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="ekspor-xlsx">' + ic('sheet') + ' Unduh Excel (.xlsx)</button><button class="btn ghost" data-act="ekspor-csv">' + ic('dl') + ' Unduh CSV</button><a class="btn soft" href="#/rekap">Buka Rekap</a></div>' +
+      '<p style="margin:14px 0 6px"><b>Kejutan bulanan</b><br><small style="color:var(--muted)">Pratinjau layar animasi yang dilihat anggota setiap tanggal 1 (tidak menandai sudah dilihat).</small></p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn soft sm" data-act="putar-reveal" data-v="lalu">Pratinjau bulan lalu</button><button class="btn soft sm" data-act="putar-reveal" data-v="ini">Pratinjau bulan ini</button></div>' +
       '<p style="font-size:13px;color:var(--muted);margin:12px 0 0">Ekspor mengikuti filter terakhir di halaman Rekap (bawaan: bulan ini). Total ' + S.checkins.length + ' catatan dimuat.</p>' +
       (Store.mode === 'demo' ? '<hr style="border:0;border-top:1px dashed var(--line);margin:16px 0"><p style="margin:0 0 10px"><b>Mode demo:</b> data contoh tersimpan di browser ini saja.</p><button class="btn danger sm" data-act="demo-reset">Kembalikan data contoh</button>'
         : '<hr style="border:0;border-top:1px dashed var(--line);margin:16px 0"><p style="margin:0;font-size:13px;color:var(--muted)">Masuk sebagai <b>' + E(u && u.email) + '</b> · <a href="#/pengurus" data-act="admin-keluar">Keluar</a></p>') + '</section>';
@@ -642,6 +669,55 @@
   async function aksiAdmin(fn, ok) {
     try { await fn(); if (ok) toast(ok); } catch (e) { toast('Gagal: ' + (e.code || e.message || e), true); }
     render();
+  }
+
+  /* ---------- KEJUTAN BULANAN ---------- */
+  function dataReveal(kode) {
+    var s = cfg(), ini = kode === 'ini', P = U.periode(ini ? 'bulan' : 'lalu'), uid = S.user && S.user.uid;
+    var data = ini ? S.checkins : S.checkins.filter(function (c) { return c.tanggal <= P.sampai; });
+    var acuan = ini ? undefined : P.sampai;
+    var rows = data.filter(function (c) { return c.tanggal >= P.dari && c.tanggal <= P.sampai; });
+    if (!rows.length) return null;
+    var stat = U.hitungStatistik(data, s, P.dari, P.sampai, acuan);
+    var sebelum = U.hitungStatistik(data.filter(function (c) { return c.tanggal < P.dari; }), s, '0000-01-01', '9999-12-31', U.addDays(P.dari, -1));
+    var urut = U.urutkan(stat.filter(function (x) { return x.poin > 0; }));
+    var mine = stat.filter(function (x) { return x.memberId === uid; })[0], lama = sebelum.filter(function (x) { return x.memberId === uid; })[0];
+    var baru = mine ? mine.lencana.filter(function (k) { return !lama || lama.lencana.indexOf(k) < 0; }) : [];
+    var me = memberById(uid), nama = me ? me.nama : (S.user.name || 'kamu').split(' ')[0];
+    var saya = ringkasAnggota(rows.filter(function (c) { return c.memberId === uid; }))[0];
+    var hari = {}, orang = {}; rows.forEach(function (c) { hari[c.tanggal] = 1; orang[c.memberId] = 1; });
+    var rank = null;
+    urut.forEach(function (x, i) { if (x.memberId === uid) rank = { rank: i + 1, total: urut.length }; });
+    function terbaik(f, label, ikon, sat) {
+      var b = stat.slice().sort(function (x, y) { return f(y) - f(x) || x.nama.localeCompare(y.nama); })[0];
+      return b && f(b) > 0 ? { label: label, nama: b.nama, nilai: f(b) + ' ' + sat, ikon: ic(ikon) } : null;
+    }
+    return {
+      org: s.orgName, bulan: U.bulan(P.dari), kunci: P.dari.slice(0, 7), nama: nama, logo: 'assets/logo.png',
+      komunitas: { total: rows.length, anggota: Object.keys(orang).length, hari: Object.keys(hari).length },
+      saya: { hadir: saya ? saya.hadir : 0, jam: saya ? Math.round(saya.ms / 3600e3 * 10) / 10 : 0, kegiatan: saya ? saya.top : '' },
+      lencanaBaru: baru.map(function (k) { var l = U.LENCANA.filter(function (x) { return x.k === k; })[0]; return { nama: l.nama, ket: l.ket, ikon: ic(l.ikon) }; }),
+      podium: urut.slice(0, 3).map(function (x) { return { nama: x.nama, poin: x.poin, av: av(x.nama, '', x.memberId), saya: x.memberId === uid }; }),
+      peringkat: rank,
+      penghargaan: [terbaik(function (x) { return x.hadir; }, 'Paling sering terlihat', 'star', 'kali hadir'),
+        terbaik(function (x) { return x.streak; }, 'Paling betah', 'flame', 'pekan'),
+        terbaik(function (x) { return x.catatan; }, 'Juru tulis bulan ini', 'pencil', 'catatan')].filter(Boolean)
+    };
+  }
+  function bukaReveal(kode, pratinjau) {
+    if (!window.TKReveal || !S.user) return;
+    var d = dataReveal(kode);
+    if (!d) return toast('Belum ada data kehadiran untuk periode itu.', true);
+    if (!pratinjau && kode === 'lalu') lsSet('tk_reveal_' + S.user.uid + '_' + d.kunci, '1');
+    window.TKReveal.main(d, { onTutup: function () { render(); } });
+  }
+  var revealDicek = false;
+  function cekReveal() {
+    if (revealDicek || gateKey || !S.user || !S.profil || !S.ready || !S.settingsLoaded) return;
+    revealDicek = true;
+    var P = U.periode('lalu');
+    if (lsGet('tk_reveal_' + S.user.uid + '_' + P.dari.slice(0, 7)) || !adaDataLalu()) return;
+    setTimeout(function () { bukaReveal('lalu'); }, 500);
   }
 
   /* ---------- MASUK, PROFIL, MENU PENGGUNA ---------- */
@@ -723,7 +799,7 @@
     var s = cfg(), kata = s.orgName.split(' ');
     $('#brandName').innerHTML = kata.length > 1 ? E(kata[0]) + '<br>' + E(kata.slice(1).join(' ')) : E(s.orgName);
     $('#ftrBrand').innerHTML = ic('home') + ' ' + E(s.appName);
-    $('#ftrCopy').textContent = '© ' + new Date().getFullYear() + ' ' + s.orgName + ' · v3';
+    $('#ftrCopy').textContent = '© ' + new Date().getFullYear() + ' ' + s.orgName + ' · v5';
     $('#ftrAdmin').innerHTML = ic('shield') + ' Pengurus';
     $('#ftrAdmin').hidden = !isAdmin();
     $('#ftrMode').innerHTML = Store.mode === 'demo' ? '<span class="pill gold">Mode demo</span>' :
@@ -739,7 +815,7 @@
         : '<a href="#/' + m[0] + '"' + cur + '>' + ic(m[2]) + m[1] + '</a>';
     }).join('');
     document.title = RUTE[r][0] + ' · ' + s.appName + ' ' + s.orgName;
-    banner(); chipUser(); renderGate();
+    banner(); chipUser(); renderGate(); cekReveal();
   }
   function banner() {
     var el = $('#sys'), e = S.error, pesan = '', bad = false;
@@ -790,7 +866,7 @@
       case 'geo-start': geoMulai(); break;
       case 'sim': Geo.sim = v; lsSet('tk_sim', v); if (v === 'off') { Geo.state = 'idle'; geoMulai(); } else { Geo.state = 'ok'; paintLive(); } break;
       case 'masuk-google': Store.signIn().catch(function (e) { toast('Gagal masuk: ' + (e.code || e.message), true); }); break;
-      case 'keluar': setMenu(false); Promise.resolve(Store.signOut()).then(function () { d._init = false; ui.editProfil = false; render(); }); break;
+      case 'keluar': setMenu(false); Promise.resolve(Store.signOut()).then(function () { revealDicek = false; d._init = false; ui.editProfil = false; render(); }); break;
       case 'ubah-profil': setMenu(false); ui.editProfil = true; renderGate(); break;
       case 'batal-profil': ui.editProfil = false; renderGate(); break;
       case 'simpan-profil': simpanProfil(); break;
@@ -800,6 +876,7 @@
       case 'update': simpanAbsen('update'); break;
       case 'pulang': simpanAbsen('pulang'); break;
       case 'periode': ui.periode = v; render(); break;
+      case 'putar-reveal': bukaReveal(v, true); break;
       case 'rekap-tab': ui.rekap.tab = v; render(); break;
       case 'ajak': ajak(); break;
       case 'ekspor-xlsx': ekspor('xlsx'); break;

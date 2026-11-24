@@ -1,9 +1,9 @@
 window.KEHADIRAN = {
   nama: "Yayasan Al-Kahfi",
-  lokasi: { nama: "Sekre Polowijen", lat: -7.92222616004017, lng: 112.64070906526774, radius: 50 },
-  kegiatan: ["Nongkrong / diskusi", "Persiapan acara", "Rapat", "Eksekusi proyek"],
+  lokasi: { nama: "Sekre Polowijen", lat: -7.92222616004017, lng: 112.64070906526774, radius: 70 },
+  kegiatan: ["Nongkrong dan diskusi", "Persiapan acara", "Rapat", "Kontribusi", "Kajian SM/MT", "Kesekretariatan", "Nge-Plan bareng", "READ", "Literasi (Baca, Pinjam, KP Buku Perpustakaan/ Buletin Ulbab)", "Belajar Kelompok/ Mengerjakan PR Sekolah", "Peran Organisasi"],
   qrToken: "",
-  adminEmails: ["getramaz@gmail.com"],
+  adminEmails: ["getramaz@gmail.com", "ohd8094@gmail.com"],
   firebase: {
     enabled: true,
     apiKey: "AIzaSyB7ymzEuvTVCCK37-oI3bbKBiwbMKbYhqI",

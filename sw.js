@@ -1,12 +1,12 @@
 /* Service worker Tanda Kehadiran.
    Menyimpan berkas aplikasi di cache supaya bisa dibuka lagi tanpa internet.
    Setelah mengubah berkas aplikasi, naikkan VERSION agar cache lama diganti. */
-const VERSION = 'kehadiran-v3';
+const VERSION = 'kehadiran-v6';
 const EXTERNAL = 'kehadiran-external';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './assets/style.css', './assets/logo.png',
-  './js/config.js', './js/util.js', './js/qr.js', './js/store.js', './js/app.js',
+  './js/config.js', './js/util.js', './js/qr.js', './js/store.js', './js/reveal.js', './js/app.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png'
 ];
 

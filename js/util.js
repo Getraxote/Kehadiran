@@ -94,22 +94,27 @@ window.TKU = (function () {
   function periode(kode) {
     var t = todayStr();
     if (kode === 'bulan') return { dari: t.slice(0, 8) + '01', sampai: t, label: 'Bulan ini' };
+    if (kode === 'lalu') {
+      var akhir = addDays(t.slice(0, 8) + '01', -1);
+      return { dari: akhir.slice(0, 8) + '01', sampai: akhir, label: 'Bulan lalu' };
+    }
     if (kode === '30') return { dari: addDays(t, -29), sampai: t, label: '30 hari terakhir' };
     return { dari: '0000-01-01', sampai: '9999-12-31', label: 'Semua' };
   }
 
+  // Nama dan keterangan sengaja dibuat samar: syaratnya tidak dibuka, anggota menebak sambil jalan.
   var LENCANA = [
-    { k: 'pemula', ikon: 'sprout', nama: 'Langkah Pertama', ket: 'Hadir untuk pertama kali' },
-    { k: 'konsisten', ikon: 'flame', nama: 'Konsisten', ket: 'Hadir 3 pekan berturut-turut' },
-    { k: 'rajin', ikon: 'star', nama: 'Rajin 10', ket: 'Hadir 10 kali' },
-    { k: 'pencatat', ikon: 'pencil', nama: 'Rajin Mencatat', ket: '5 kali mengisi catatan kontribusi' },
-    { k: 'pagi', ikon: 'sun', nama: 'Si Pagi', ket: '3 kali datang sebelum jam 08.00' }
+    { k: 'pemula', ikon: 'sprout', nama: 'Tunas Baru', ket: 'Ada yang baru saja mekar.' },
+    { k: 'konsisten', ikon: 'flame', nama: 'Jam Dinding', ket: 'Selalu ada, tanpa perlu diingatkan.' },
+    { k: 'rajin', ikon: 'star', nama: 'Kursi Tetap', ket: 'Sandarannya sudah hafal punggungmu.' },
+    { k: 'pencatat', ikon: 'pencil', nama: 'Juru Tulis Senyap', ket: 'Pena yang jarang kering.' },
+    { k: 'pagi', ikon: 'sun', nama: 'Saudara Ayam', ket: '3 kali kokokan pertama.' }
   ];
 
   /* Hitung statistik tiap anggota. Poin dihitung dari data (bukan disimpan),
      jadi kalau aturan poin diubah pengurus, papan apresiasi ikut menyesuaikan. */
-  function hitungStatistik(checkins, settings, dari, sampai) {
-    var P = settings.poin, per = {}, now = todayStr(), cw = weekIdx(now);
+  function hitungStatistik(checkins, settings, dari, sampai, acuan) {
+    var P = settings.poin, per = {}, now = acuan || todayStr(), cw = weekIdx(now);
     checkins.forEach(function (c) { (per[c.memberId] = per[c.memberId] || []).push(c); });
     return Object.keys(per).map(function (id) {
       var docs = per[id].slice().sort(function (a, b) { return a.tanggal < b.tanggal ? -1 : 1; });
