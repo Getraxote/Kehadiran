@@ -1,7 +1,7 @@
 /* Service worker Tanda Kehadiran.
    Menyimpan berkas aplikasi di cache supaya bisa dibuka lagi tanpa internet.
    Setelah mengubah berkas aplikasi, naikkan VERSION agar cache lama diganti. */
-const VERSION = 'kehadiran-v7';
+const VERSION = 'kehadiran-v9';
 const EXTERNAL = 'kehadiran-external';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',

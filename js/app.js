@@ -60,7 +60,8 @@
     periode: 'bulan',
     rekap: { dari: '', sampai: '', member: '', kegiatan: '', tab: 'tanggal' },
     draft: { aktivitas: '', lain: '', catatan: '' },
-    selesai: null, editProfil: false, menu: false, tirai: false
+    selesai: null, editProfil: false, menu: false, tirai: false,
+    sus: { hari: '', lok: '', jam: '' }
   };
   // Identitas anggota = akun Google yang sedang masuk (tidak ada lagi memilih nama dari daftar).
   Object.defineProperty(ui.draft, 'memberId', { enumerable: true, get: function () { return S.user ? S.user.uid : ''; } });
@@ -75,9 +76,19 @@
   function sedangHadir() {
     var today = U.todayStr(), batas = cfg().autoPulangJam * 3600e3, now = Date.now();
     return S.checkins.filter(function (c) {
-      return c.tanggal === today && now - U.aktifTerakhir(c) < batas;
+      return c.tanggal === today && !c.susulan && now - U.aktifTerakhir(c) < batas;
     }).sort(function (a, b) { return U.aktifTerakhir(b) - U.aktifTerakhir(a); });
   }
+  /* Kelompokkan yang sedang hadir per lokasi (hanya bila lokasi lebih dari satu). */
+  function kelompokLokasi(list) {
+    var L = lokasiList(), g = L.map(function (l) { return { nama: l.nama, items: [] }; }), lain = { nama: '', items: [] };
+    list.forEach(function (c) {
+      var k = g.filter(function (x) { return x.nama === c.lokasi; })[0];
+      (k || lain).items.push(c);
+    });
+    return { grup: g, lain: lain.items };
+  }
+  function viaStr(c) { return c.susulan ? (c.susulan === 'jejak' ? 'Susulan (jejak GPS)' : 'Susulan (jam manual)') : c.metode === 'qr' ? 'QR' : 'GPS'; }
   function aktivitasStr(c) {
     var seen = [];
     (c.riwayat || []).forEach(function (r) { if (r.a && seen.indexOf(r.a) < 0) seen.push(r.a); });
@@ -146,14 +157,14 @@
   /* ---------- GPS ---------- */
   var Geo = { state: 'idle', pos: null, watch: null, sim: lsGet('tk_sim') || 'off' };
   function geoMulai() {
-    if (Geo.sim !== 'off') { Geo.state = 'ok'; paintLive(); return; }
+    if (Geo.sim !== 'off') { Geo.state = 'ok'; catatJejak(); paintLive(); return; }
     if (!('geolocation' in navigator)) { Geo.state = 'unsupported'; paintLive(); return; }
     if (!window.isSecureContext) { Geo.state = 'insecure'; paintLive(); return; }
     Geo.state = 'locating'; paintLive();
     if (Geo.watch != null) navigator.geolocation.clearWatch(Geo.watch);
     Geo.watch = navigator.geolocation.watchPosition(function (p) {
       Geo.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy || 0, ts: Date.now() };
-      Geo.state = 'ok'; paintLive();
+      Geo.state = 'ok'; catatJejak(); paintLive();
     }, function (e) {
       Geo.state = e.code === 1 ? 'denied' : 'error'; paintLive();
     }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 25000 });
@@ -181,6 +192,86 @@
     var s = cfg(), o = null;
     try { o = JSON.parse(lsGet('tk_qr', sessionStorage)); } catch (e) { o = null; }
     return !!(s.qrAktif && s.qrToken && o && o.t === s.qrToken && Date.now() - o.ts < 3 * 3600e3);
+  }
+  /* ---------- JEJAK LOKASI & SUSULAN ----------
+     Saat aplikasi terbuka dan HP terdeteksi di radius, waktu pertamanya dicatat di HP itu (bukan di server).
+     Kalau anggota lupa mengisi, ia bisa mengisi susulan dengan jam terdeteksi tersebut. */
+  function jejakAmbil() {
+    if (!S.user) return {};
+    try { return JSON.parse(lsGet('tk_jejak_' + S.user.uid) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function catatJejak() {
+    if (!S.user || Geo.state !== 'ok') return;
+    var g = geoInfo();
+    if (g.st !== 'ok' || !g.inside || g.rendah) return;
+    var j = jejakAmbil(), t = U.todayStr();
+    if (j[t]) return;
+    j[t] = { t: Date.now(), lok: g.lok.nama, jarak: Math.round(g.dist) };
+    Object.keys(j).sort().slice(0, -4).forEach(function (k) { delete j[k]; });
+    lsSet('tk_jejak_' + S.user.uid, JSON.stringify(j));
+  }
+  function tanggalSusulan() {   // hari yang masih boleh diisi susulan dan belum ada catatannya
+    if (!S.user || !S.profil || S.profil.aktif === false) return [];
+    var t = U.todayStr(), k = U.addDays(t, -1), batas = cfg().susulanSampaiJam || 12, out = [], j = jejakAmbil();
+    function ada(tgl) { return !!cekById(tgl + '_' + S.user.uid); }
+    if (!ada(t)) out.push({ kode: 'ini', tgl: t, label: 'Hari ini', jejak: j[t] || null });
+    if (new Date().getHours() < batas && !ada(k)) out.push({ kode: 'kemarin', tgl: k, label: 'Kemarin', jejak: j[k] || null });
+    return out;
+  }
+  function bannerJejak() {
+    var l = tanggalSusulan().filter(function (x) { return x.jejak && (x.kode !== 'ini' || !bolehAbsen()); })[0];
+    if (!l) return '';
+    return '<div class="banner info" style="margin:14px 0 0">' + ic('pin') + '<div><b>' + E(l.jejak.lok) + ' terdeteksi pukul ' + U.jam(l.jejak.t) + ' (' + l.label.toLowerCase() + ').</b><br>Kehadiranmu belum diisi. ' +
+      '<a href="#/hadir" style="font-weight:700">Isi susulan sekarang →</a></div></div>';
+  }
+  function susulanCard() {
+    var op = tanggalSusulan().filter(function (x) { return x.kode !== 'ini' || !bolehAbsen(); });
+    if (!op.length) return '';
+    var su = ui.sus;
+    if (!ui.susPilih || !op.some(function (x) { return x.kode === su.hari; })) su.hari = (op.filter(function (x) { return x.jejak; })[0] || op[0]).kode;
+    var cur = op.filter(function (x) { return x.kode === su.hari; })[0], L = lokasiList();
+    var h = '<div class="card" style="margin-top:18px"><h3 style="font-size:20px;margin-bottom:6px">Lupa mengisi tadi?</h3>' +
+      '<p style="margin:0 0 12px;color:var(--muted);font-size:14px">Kamu masih bisa mengisi susulan sampai pukul ' + (cfg().susulanSampaiJam || 12) + '.00 keesokan harinya. Kegiatan dan catatan diambil dari formulir di sebelah, lalu catatannya diberi tanda “susulan”.</p>';
+    if (op.length > 1) h += '<div class="chips" role="group" aria-label="Hari">' + op.map(function (x) { return '<button class="chip" data-act="sus-hari" data-v="' + x.kode + '" aria-pressed="' + (x.kode === su.hari) + '">' + x.label + '</button>'; }).join('') + '</div>';
+    if (cur.jejak) {
+      h += '<div class="banner ok" style="margin:12px 0">' + ic('pin') + '<div><b>Terdeteksi di ' + E(cur.jejak.lok) + ' pukul ' + U.jam(cur.jejak.t) + '.</b><br>Jam kehadiran akan mengikuti waktu itu.</div></div>' +
+        '<button class="btn block" data-act="susulan">' + ic('checkc') + ' Isi susulan (pukul ' + U.jam(cur.jejak.t) + ')</button>';
+    } else {
+      h += '<div class="banner info" style="margin:12px 0">' + ic('info') + '<div>Tidak ada jejak lokasi di HP ini, jadi jam diisi sendiri dan ditandai “susulan (jam manual)”. Pengurus dapat menghapus catatan yang janggal.</div></div>' +
+        (L.length > 1 ? '<div class="fld"><label for="s-lok">Kamu hadir di</label><select id="s-lok" data-k="sus.lok">' + L.map(function (l) { return '<option value="' + E(l.nama) + '"' + (su.lok === l.nama ? ' selected' : '') + '>' + E(l.nama) + '</option>'; }).join('') + '</select></div>' : '') +
+        '<div class="fld"><label for="s-jam">Sekitar pukul berapa kamu tiba?</label><input type="time" id="s-jam" data-k="sus.jam" value="' + E(su.jam) + '"></div>' +
+        '<button class="btn block" data-act="susulan">' + ic('checkc') + ' Isi susulan</button>';
+    }
+    return h + '</div>';
+  }
+  async function simpanSusulan() {
+    if (sibuk) return;
+    var d = ui.draft, me = memberById(d.memberId), op = tanggalSusulan(), cur = op.filter(function (x) { return x.kode === ui.sus.hari; })[0];
+    if (!me || !cur) return toast('Susulan tidak tersedia untuk hari itu', true);
+    var a = aktivitasFinal(), cat = (d.catatan || '').trim().slice(0, 280), L = lokasiList(), masuk, lok = '', jarak = null;
+    if (!a) return toast('Pilih kegiatanmu dulu di formulir', true);
+    if (cur.jejak) { masuk = cur.jejak.t; lok = cur.jejak.lok; jarak = cur.jejak.jarak; }
+    else {
+      var m = /^(\d{1,2}):(\d{2})$/.exec(ui.sus.jam || '');
+      if (!m) return toast('Isi jam kedatanganmu dulu', true);
+      var p = cur.tgl.split('-');
+      masuk = new Date(+p[0], +p[1] - 1, +p[2], +m[1], +m[2]).getTime();
+      if (masuk > Date.now()) return toast('Jam itu belum terjadi', true);
+      lok = L.length > 1 ? (ui.sus.lok || L[0].nama) : '';
+    }
+    var rec = { id: cur.tgl + '_' + me.id, tanggal: cur.tgl, memberId: me.id, nama: me.nama, aktivitas: a, catatan: cat,
+      masuk: masuk, keluar: null, metode: cur.jejak ? 'gps' : 'manual', riwayat: [{ a: a, t: masuk }], susulan: cur.jejak ? 'jejak' : 'manual' };
+    if (jarak != null) rec.jarak = jarak;
+    if (lok && L.length > 1) rec.lokasi = lok;
+    try {
+      sibuk = true;
+      await Store.createCheckin(rec);
+      ui.selesai = { memberId: me.id, ts: Date.now() }; ui.susPilih = false;
+      toast('Kehadiran susulan tercatat (' + cur.label.toLowerCase() + ', pukul ' + U.jam(masuk) + ').');
+    } catch (e) {
+      toast('Gagal menyimpan: ' + (e.code || e.message || e) + (e.code === 'permission-denied' ? ' — pastikan Rules terbaru sudah di-Publish' : ''), true);
+    } finally { sibuk = false; }
+    render();
   }
   function bolehAbsen() {
     var g = geoInfo();
@@ -283,14 +374,14 @@
       '<h1>' + E(s.appName) + '</h1><div class="sub">' + E(s.orgName) + '</div>' +
       '<p class="hello">' + salamWaktu() + (me ? ', <b>' + E(me.nama.split(' ')[0]) + '</b>' : '') + '. ' + U.tglPanjang(today) +
       '. Datang ke ' + E(namaLokasi()) + ', isi kehadiran, dan ceritakan kamu lagi ngapain.</p>' +
-      '<div class="row" data-live="cta">' + ctaHero() + '<a class="btn ghost light" href="#/siapa">' + ic('users') + ' Siapa di sini (' + now.length + ')</a></div></div>' +
+      '<div class="row" data-live="cta">' + ctaHero() + '<a class="btn ghost light" href="#/siapa">' + ic('users') + ' Siapa di sini (' + now.length + ')</a></div>' + bannerJejak() + '</div>' +
       '<div class="card" data-live="gps">' + panelGps() + '</div></div></section>' +
 
       '<div class="wrap"><div class="grid g4 keep2 lift">' +
-      stat(now.length, 'Di ' + E(namaLokasi()) + ' sekarang') + stat(hariIni, 'Hadir hari ini') +
+      stat(now.length, lokasiList().length > 1 ? 'Sedang hadir sekarang' : 'Di ' + E(namaLokasi()) + ' sekarang') + stat(hariIni, 'Hadir hari ini') +
       stat(bulanIni, 'Kehadiran bulan ini') + stat(aktifList().length, 'Anggota terdaftar') + '</div>' +
 
-      '<section class="sec"><div class="sec-h"><div><h2>Sedang di ' + E(namaLokasi()) + '</h2><span class="uline"></span></div><a href="#/siapa">Lihat semua →</a></div>' +
+      '<section class="sec"><div class="sec-h"><div><h2>' + (lokasiList().length > 1 ? 'Sedang hadir' : 'Sedang di ' + E(namaLokasi())) + '</h2><span class="uline"></span></div><a href="#/siapa">Lihat semua →</a></div>' +
       (now.length ? '<div class="grid g4">' + now.slice(0, 4).map(kartuHadir).join('') + '</div>' :
         '<div class="card">' + kosong('users', 'Belum ada yang merapat', 'Jadilah yang pertama hadir hari ini!') + '</div>') + '</section>' +
 
@@ -327,7 +418,7 @@
   }
   function hadir() {
     var s = cfg(), d = ui.draft, me = memberById(d.memberId), m = milik();
-    var kiri = '';
+    var kiri = bannerJejak();
     if (m && !d._init) {   // isi ulang form dari catatan hari ini bila sudah ada
       if (s.kategori.indexOf(m.aktivitas) >= 0) { d.aktivitas = m.aktivitas; d.lain = ''; } else { d.aktivitas = '__lain'; d.lain = m.aktivitas; }
       d.catatan = m.catatan || ''; d._init = true;
@@ -351,7 +442,7 @@
       '<div class="fld"><textarea id="catatan" maxlength="280" data-k="catatan" placeholder="Contoh: membantu menyusun jadwal santunan anak yatim" aria-label="Catatan kontribusi">' + E(d.catatan) + '</textarea></div>' +
       '<div data-live="submit">' + tombolKirim() + '</div>';
 
-    var kanan = '<div class="card" data-live="gps">' + panelGps() + '</div>' +
+    var kanan = '<div class="card" data-live="gps">' + panelGps() + '</div><div data-live="sus">' + susulanCard() + '</div>' +
       '<div class="card" style="margin-top:18px"><h3 style="font-size:20px;margin-bottom:8px">Cara kerjanya</h3>' +
       '<div class="bd">' + ic('locate') + '<div>Tombol hanya aktif bila GPS HP-mu berada dalam ' + radiusTeks() + '.</div></div>' +
       (s.qrAktif ? '<div class="bd">' + ic('qr') + '<div>GPS susah di dalam ruangan? Scan <b>QR Code</b> yang ditempel di lokasi dengan kamera HP.</div></div>' : '') +
@@ -408,15 +499,22 @@
     var s = cfg(), now = sedangHadir(), today = U.todayStr();
     var pulang = S.checkins.filter(function (c) { return c.tanggal === today && now.indexOf(c) < 0; })
       .sort(function (a, b) { return (b.keluar || b.masuk) - (a.keluar || a.masuk); });
-    var hitung = {};
+    var kel = kelompokLokasi(now), hitung = {};
     now.forEach(function (c) { hitung[c.aktivitas] = (hitung[c.aktivitas] || 0) + 1; });
     var ringkas = Object.keys(hitung).map(function (k) { return '<span class="tag">' + E(k) + ' · ' + hitung[k] + '</span>'; }).join(' ');
     var body = '<div class="card" style="margin-bottom:18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">' +
-      '<div style="flex:1;min-width:220px"><div style="display:flex;align-items:center;gap:10px"><span class="dot"></span><h2 style="font-size:30px">' + now.length + ' orang di ' + E(namaLokasi()) + '</h2></div>' +
+      '<div style="flex:1;min-width:220px"><div style="display:flex;align-items:center;gap:10px"><span class="dot"></span><h2 style="font-size:30px">' + now.length + ' orang ' + (lokasiList().length > 1 ? 'sedang hadir' : 'di ' + E(namaLokasi())) + '</h2></div>' +
+      (lokasiList().length > 1 ? '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' + kel.grup.map(function (x) { return '<span class="tag g">' + E(x.nama) + ' · ' + x.items.length + '</span>'; }).join(' ') + (kel.lain.length ? ' <span class="tag">Via QR · ' + kel.lain.length + '</span>' : '') + '</div>' : '') +
       (ringkas ? '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' + ringkas + '</div>' : '<p style="margin:6px 0 0;color:var(--muted)">Belum ada yang merapat.</p>') + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" data-act="ajak">' + ic('share') + ' Ajak Merapat</button><a class="btn ghost" href="#/hadir">Isi Kehadiran</a></div></div>';
-    body += now.length ? '<div class="grid g3">' + now.map(kartuHadir).join('') + '</div>' :
-      '<div class="card">' + kosong('users', 'Sepi dulu nih', 'Ajak teman-teman merapat lewat tombol di atas.') + '</div>';
+    if (!now.length) body += '<div class="card">' + kosong('users', 'Sepi dulu nih', 'Ajak teman-teman merapat lewat tombol di atas.') + '</div>';
+    else if (lokasiList().length < 2) body += '<div class="grid g3">' + now.map(kartuHadir).join('') + '</div>';
+    else {
+      kel.grup.concat(kel.lain.length ? [{ nama: 'Via QR (lokasi tidak tercatat)', items: kel.lain }] : []).forEach(function (x, i) {
+        body += '<section class="sec" style="margin-top:' + (i ? 26 : 0) + 'px"><div class="sec-h"><div><h2>' + ic('pin') + ' ' + E(x.nama) + ' <span class="tag g">' + x.items.length + ' orang</span></h2><span class="uline"></span></div></div>' +
+          (x.items.length ? '<div class="grid g3">' + x.items.map(kartuHadir).join('') + '</div>' : '<div class="card">' + kosong('users', 'Belum ada yang merapat', 'Jadilah yang pertama hadir di sini.') + '</div>') + '</section>';
+      });
+    }
     if (pulang.length) {
       body += '<section class="sec"><div class="sec-h"><div><h2>Hadir lebih awal hari ini</h2><span class="uline"></span></div></div><div class="card pad0"><div class="rows">' +
         pulang.map(function (c) {
@@ -430,7 +528,9 @@
   function ajak() {
     var now = sedangHadir(), s = cfg(), url = location.origin + location.pathname;
     var teks = now.length
-      ? 'Ada ' + now.length + ' orang di ' + namaLokasi() + ' sekarang (' + now.slice(0, 4).map(function (c) { return c.nama.split(' ')[0]; }).join(', ') + (now.length > 4 ? ', dll' : '') + '). Yuk merapat!'
+      ? (lokasiList().length > 1
+        ? 'Sedang ada yang hadir: ' + kelompokLokasi(now).grup.filter(function (x) { return x.items.length; }).map(function (x) { return x.items.length + ' orang di ' + x.nama; }).join(', ') + '. Yuk merapat!'
+        : 'Ada ' + now.length + ' orang di ' + namaLokasi() + ' sekarang (' + now.slice(0, 4).map(function (c) { return c.nama.split(' ')[0]; }).join(', ') + (now.length > 4 ? ', dll' : '') + '). Yuk merapat!')
       : 'Yuk merapat ke ' + namaLokasi() + '!';
     if (navigator.share) { navigator.share({ title: s.appName, text: teks, url: url }).catch(function () {}); return; }
     window.open('https://wa.me/?text=' + encodeURIComponent(teks + ' ' + url), '_blank', 'noopener');
@@ -550,7 +650,7 @@
       isi = tglList.slice(0, 60).map(function (t) {
         return '<div class="day-card"><header><b>' + U.tglPanjang(t) + '</b><span class="tag g">' + hari[t].length + ' hadir</span></header><div class="body">' +
           hari[t].sort(function (a, b) { return a.masuk - b.masuk; }).map(function (c) {
-            return '<div class="p">' + av(c.nama, 'sm', c.memberId) + '<span class="nm">' + E(c.nama) + '</span><span class="tag">' + E(aktivitasStr(c)) + '</span><small>' + U.jam(c.masuk) + (c.lokasi ? ' · ' + E(c.lokasi) : '') + '</small>' +
+            return '<div class="p">' + av(c.nama, 'sm', c.memberId) + '<span class="nm">' + E(c.nama) + '</span><span class="tag">' + E(aktivitasStr(c)) + '</span><small>' + U.jam(c.masuk) + (c.lokasi ? ' · ' + E(c.lokasi) : '') + (c.susulan ? ' · susulan' : '') + '</small>' +
               (c.catatan ? '<small style="flex-basis:100%;padding-left:44px">“' + E(c.catatan) + '”</small>' : '') + '</div>';
           }).join('') + '</div></div>';
       }).join('') + (tglList.length > 60 ? '<p class="empty">Menampilkan 60 tanggal terbaru dari ' + tglList.length + '. Persempit rentang tanggal untuk melihat yang lain.</p>' : '');
@@ -564,7 +664,7 @@
       isi = '<div class="tbl-w"><table class="t"><thead><tr><th>Tanggal</th><th>Nama</th><th>Masuk</th><th>Lokasi</th><th>Kegiatan</th><th>Catatan</th><th>Via</th>' + (admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
         rows.slice(0, batas).map(function (c) {
           return '<tr><td class="nowrap">' + U.tglPendek(c.tanggal) + '</td><td><b>' + E(c.nama) + '</b></td><td>' + U.jam(c.masuk) + '</td><td>' + (c.lokasi ? E(c.lokasi) : '<span class="mut">—</span>') + '</td>' +
-            '<td>' + E(aktivitasStr(c)) + '</td><td>' + E(c.catatan || '') + '</td><td>' + (c.metode === 'qr' ? 'QR' : 'GPS') + '</td>' +
+            '<td>' + E(aktivitasStr(c)) + '</td><td>' + E(c.catatan || '') + '</td><td>' + viaStr(c) + '</td>' +
             (admin ? '<td><button class="btn sm danger" data-act="hapus-cek" data-id="' + E(c.id) + '" aria-label="Hapus catatan ' + E(c.nama) + '">' + ic('trash') + '</button></td>' : '') + '</tr>';
         }).join('') + '</tbody></table></div>' + (rows.length > batas ? '<p class="empty">Menampilkan ' + batas + ' dari ' + rows.length + ' baris. Ekspor untuk data lengkap.</p>' : '');
     }
@@ -580,7 +680,7 @@
     var hariNama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     var judul = ['Tanggal', 'Hari', 'Nama', 'Masuk', 'Lokasi', 'Kegiatan', 'Catatan', 'Via', 'Jarak saat absen (m)'];
     var detail = [judul].concat(rows.map(function (c) {
-      return [c.tanggal, hariNama[new Date(c.tanggal + 'T12:00:00').getDay()], c.nama, U.jam(c.masuk), c.lokasi || '', aktivitasStr(c), c.catatan || '', c.metode === 'qr' ? 'QR' : 'GPS', c.jarak == null ? '' : c.jarak];
+      return [c.tanggal, hariNama[new Date(c.tanggal + 'T12:00:00').getDay()], c.nama, U.jam(c.masuk), c.lokasi || '', aktivitasStr(c), c.catatan || '', viaStr(c), c.jarak == null ? '' : c.jarak];
     }));
     var nama = 'kehadiran_' + f.dari + '_sd_' + f.sampai;
     if (jenis === 'csv') { U.unduh(U.csv(detail), nama + '.csv'); return toast('CSV diunduh.'); }
@@ -819,7 +919,7 @@
     var s = cfg(), kata = s.orgName.split(' ');
     $('#brandName').innerHTML = kata.length > 1 ? E(kata[0]) + '<br>' + E(kata.slice(1).join(' ')) : E(s.orgName);
     $('#ftrBrand').innerHTML = ic('home') + ' ' + E(s.appName);
-    $('#ftrCopy').textContent = '© ' + new Date().getFullYear() + ' ' + s.orgName + ' · v7';
+    $('#ftrCopy').textContent = '© ' + new Date().getFullYear() + ' ' + s.orgName + ' · v9';
     $('#ftrAdmin').innerHTML = ic('shield') + ' Pengurus';
     $('#ftrAdmin').hidden = !isAdmin();
     $('#ftrMode').innerHTML = Store.mode === 'demo' ? '<span class="pill gold">Mode demo</span>' :
@@ -873,6 +973,8 @@
     $$('[data-live="cta"]').forEach(function (el) {
       el.innerHTML = ctaHero() + '<a class="btn ghost light" href="#/siapa">' + ic('users') + ' Siapa di sini (' + sedangHadir().length + ')</a>';
     });
+    var sig = bolehAbsen() + '|' + tanggalSusulan().map(function (x) { return x.kode + (x.jejak ? 'j' : ''); }).join(',');
+    if (sig !== ui.susSig) { ui.susSig = sig; $$('[data-live="sus"]').forEach(function (el) { el.innerHTML = susulanCard(); }); }
     $$('[data-live="submit"]').forEach(function (el) { el.innerHTML = tombolKirim(); });
   }
 
@@ -885,7 +987,7 @@
     if (ui.menu && a !== 'menu-user') setMenu(false);
     switch (a) {
       case 'geo-start': geoMulai(); break;
-      case 'sim': Geo.sim = v; lsSet('tk_sim', v); if (v === 'off') { Geo.state = 'idle'; geoMulai(); } else { Geo.state = 'ok'; paintLive(); } break;
+      case 'sim': Geo.sim = v; lsSet('tk_sim', v); if (v === 'off') { Geo.state = 'idle'; geoMulai(); } else { Geo.state = 'ok'; catatJejak(); paintLive(); } break;
       case 'masuk-google': Store.signIn().catch(function (e) { toast('Gagal masuk: ' + (e.code || e.message), true); }); break;
       case 'keluar': setMenu(false); Promise.resolve(Store.signOut()).then(function () { revealDicek = false; d._init = false; ui.editProfil = false; render(); }); break;
       case 'ubah-profil': setMenu(false); ui.editProfil = true; renderGate(); break;
@@ -896,6 +998,8 @@
       case 'absen': simpanAbsen('absen'); break;
       case 'update': simpanAbsen('update'); break;
       case 'periode': ui.periode = v; render(); break;
+      case 'susulan': simpanSusulan(); break;
+      case 'sus-hari': ui.sus.hari = v; ui.susPilih = true; render(); break;
       case 'tutup-tirai': ui.tirai = true; render(true); break;
       case 'putar-reveal': bukaReveal(v, true); break;
       case 'rekap-tab': ui.rekap.tab = v; render(); break;

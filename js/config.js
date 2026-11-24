@@ -31,12 +31,12 @@ window.TK_CONFIG = {
     musik: "",                 // contoh: "assets/audio/musik.mp3" (diputar berulang dengan fade in/out)
     volumeMusik: 0.4,          // 0 sampai 1
     sfx: {
-      whoosh: "assets/audio/whoosh.mp3",              // pergantian slide, contoh: "assets/audio/whoosh.mp3"
-      ting: "assets/audio/ting.mp3",                // lencana / angka muncul
-      drum: "assets/audio/drum.mp3",                // gulungan drum sebelum podium
-      fanfare: "assets/audio/fanfare.mp3"              // juara 1 dan penutup
+      whoosh: "",              // pergantian slide, contoh: "assets/audio/whoosh.mp3"
+      ting: "",                // lencana / angka muncul
+      drum: "",                // gulungan drum sebelum podium
+      fanfare: ""              // juara 1 dan penutup
     },
-    drumDetik: 7,            
+    drumDetik: 2.2,            
     volumeSfx: 0.9
   },
 
@@ -46,12 +46,13 @@ window.TK_CONFIG = {
 
     lokasi: [
       { nama: "Sekre Polowijen", lat: -7.932497637784255, lng: 112.6397824588299, radius: 50 }, 
-      { nama: "Sekre Rupat", lat: -7.992799703413493, lng: 112.62639134375375, radius: 50 }
+      { nama: "Sekre Rupat", lat: -7.992633757443084, lng: 112.62637767683425, radius: 50 }
     ],
     kategori: ["Nongkrong dan diskusi", "Persiapan acara", "Rapat", "Kontribusi", "Kajian SM/MT", "Kesekretariatan", "Nge-Plan bareng", "READ", "Literasi (Baca, Pinjam, KP Buku Perpustakaan/ Buletin Ulbab)", "Belajar Kelompok/ Mengerjakan PR Sekolah", "Peran Organisasi"],
     qrAktif: true,
     qrToken: "",               // kosong = dibuat pengurus di menu Pengurus; isi teks acak bila ingin dikunci di sini
 
+    susulanSampaiJam: 12,      // kehadiran susulan boleh diisi sampai jam segini keesokan harinya
     autoPulangJam: 8,          // nama tampil di "Siapa di Sini" selama sekian jam sejak kegiatan terakhirnya
     poin: { hadir: 10, catatan: 5, streakBonus: 5, streakMaks: 4 },
     riwayatHari: 180           // berapa hari ke belakang yang dimuat (menjaga kuota baca Firebase kecil)

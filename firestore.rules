@@ -13,7 +13,7 @@ service cloud.firestore {
     function isAdmin() {
       return signedIn()
         && request.auth.token.email_verified == true
-        && request.auth.token.email in ['getramaz@gmail.com'];
+        && request.auth.token.email in ['getramaz@gmail.com', 'ohd8094@gmail.com'];
     }
 
     function namaValid(n) {
@@ -54,7 +54,7 @@ service cloud.firestore {
       allow read: if signedIn();
 
       allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['tanggal', 'memberId', 'nama', 'aktivitas', 'catatan', 'masuk', 'keluar', 'metode', 'jarak', 'riwayat', 'lokasi'])
+        && request.resource.data.keys().hasOnly(['tanggal', 'memberId', 'nama', 'aktivitas', 'catatan', 'masuk', 'keluar', 'metode', 'jarak', 'riwayat', 'lokasi', 'susulan'])
         && request.resource.data.memberId == request.auth.uid
         && request.resource.data.tanggal is string && request.resource.data.tanggal.size() == 10
         && id == request.resource.data.tanggal + '_' + request.auth.uid
@@ -64,7 +64,8 @@ service cloud.firestore {
         && request.resource.data.catatan is string && request.resource.data.catatan.size() <= 300
         && request.resource.data.masuk is number
         && request.resource.data.keluar == null
-        && request.resource.data.metode in ['gps', 'qr']
+        && request.resource.data.metode in ['gps', 'qr', 'manual']
+        && (!('susulan' in request.resource.data) || request.resource.data.susulan in ['jejak', 'manual'])
         && (!('lokasi' in request.resource.data) || (request.resource.data.lokasi is string && request.resource.data.lokasi.size() <= 60))
         && request.resource.data.riwayat is list && request.resource.data.riwayat.size() <= 40;
 

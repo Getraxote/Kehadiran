@@ -57,6 +57,7 @@ Pengurus = akun Google yang emailnya ada di `adminEmails` (config.js) dan di `fi
 - **Satu catatan per orang per hari.** Bisa memperbarui kegiatan, menekan Pulang, dan Masuk Lagi. Yang lupa Pulang hilang dari "Siapa di Sini" setelah 8 jam (`autoPulangJam`).
 - **Poin** dihitung dari data: hadir +10, catatan kontribusi +5, bonus streak pekan beruntun (angka di `config.js`).
 - **Rekap:** per tanggal, per anggota, tabel rinci. Pengurus mengunduh `.xlsx` (3 lembar) atau `.csv` (pemisah titik koma) dan menghapus catatan yang salah.
+- **Lupa mengisi (susulan):** setiap kali aplikasi terbuka dan HP terdeteksi di radius, waktu pertama terdeteksinya dicatat di HP itu ("jejak"). Bila belum sempat mengisi, anggota bisa membuka aplikasi dari mana saja: muncul banner dan kartu "Lupa mengisi tadi?" untuk mengisi susulan dengan jam terdeteksi. Tanpa jejak, anggota mengisi jam sendiri. Susulan boleh untuk hari ini dan kemarin (sampai pukul `susulanSampaiJam` di `config.js`, bawaan 12.00), ditandai "Susulan (jejak GPS)" atau "Susulan (jam manual)" di Rekap dan Excel, tidak dihitung sebagai "sedang di lokasi", dan bisa dihapus pengurus. Catatan: web tidak bisa melacak lokasi saat aplikasi ditutup, jadi jejak hanya tercatat bila aplikasi sempat dibuka di lokasi dengan izin lokasi aktif. **Salin ulang `firestore.rules` dan Publish** agar kolom baru `susulan` diterima.
 - **Musik dan sfx sendiri:** taruh berkas (disarankan `.mp3`) di `assets/audio/`, lalu isi namanya di `js/config.js` bagian `audio` (`musik`, dan `sfx` untuk `whoosh`, `ting`, `drum`, `fanfare`). Musik diputar berulang dengan fade in/out mulai saat anggota menekan "Mulai"; tombol "Suara" membisukan semuanya. Yang dikosongkan memakai suara sintetis bawaan. Bila memakai berkas drum sendiri, isi `drumDetik` sesuai lamanya supaya podium muncul tepat setelahnya. Pakai audio buatan sendiri atau berlisensi bebas, dan usahakan ukuran musik di bawah 2 MB agar cepat dimuat di HP.
 - **Beberapa lokasi:** di `js/config.js` bagian `lokasi` berisi daftar `{ nama, lat, lng, radius }`. Tambahkan satu baris untuk lokasi kedua (contoh sudah ada, dikomentari). Tombol hadir aktif bila anggota berada di radius salah satu lokasi, dan nama lokasinya ikut tercatat (kolom Lokasi di Rekap dan Excel). **Setelah menambah lokasi kedua, salin ulang `firestore.rules` ke Firebase Console lalu Publish**, karena aturan baru mengizinkan kolom `lokasi`.
 - **Tanpa jam pulang:** tidak ada tombol Pulang. Anggota tampil di "Siapa di Sini" selama sekian jam sejak kegiatan terakhirnya (Pengurus → Poin & pengaturan).
@@ -77,7 +78,7 @@ Pengurus = akun Google yang emailnya ada di `adminEmails` (config.js) dan di `fi
 
 ## Setelah mengubah berkas
 
-Naikkan angka `VERSION` di `sw.js` (`kehadiran-v7` → `kehadiran-v8`, dan angka `?v=` di `index.html`) supaya cache lama di HP anggota diganti.
+Naikkan angka `VERSION` di `sw.js` (`kehadiran-v9` → `kehadiran-v10`, dan angka `?v=` di `index.html`) supaya cache lama di HP anggota diganti.
 
 ## Mencoba tanpa Firebase
 
