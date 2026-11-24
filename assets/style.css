@@ -451,3 +451,20 @@ body.gated { overflow: hidden; }
 .rv-next { position: relative; z-index: 4; margin: 10px auto max(22px, env(safe-area-inset-bottom)); min-width: 220px; }
 .rv-next:disabled { opacity: .35; box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .rv::before, .rv::after, .rv-in, .rv-pop { animation: none; } }
+
+/* ---------- Tirai rahasia (Rekap & Apresiasi untuk anggota) ---------- */
+.tirai { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 84px 22px 96px; overflow-y: auto; color: #fff; text-align: center;
+  background: linear-gradient(180deg, rgba(2,7,5,.98) 0%, rgba(3,10,7,.93) 45%, rgba(10,38,25,.78) 100%);
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px); animation: trIn .5s ease both; }
+@keyframes trIn { from { opacity: 0; } to { opacity: 1; } }
+.tirai-in { max-width: 460px; width: 100%; }
+.tirai-ic { display: inline-grid; place-items: center; width: 76px; height: 76px; border-radius: 50%; background: rgba(237,186,59,.14); border: 1px solid rgba(237,186,59,.55); color: var(--gold); margin-bottom: 14px; animation: trPulse 2.6s ease-in-out infinite; }
+.tirai-ic .i { width: 34px; height: 34px; }
+@keyframes trPulse { 50% { box-shadow: 0 0 0 14px rgba(237,186,59,0); transform: scale(1.05); } 0% { box-shadow: 0 0 0 0 rgba(237,186,59,.35); } }
+.tirai-eyebrow { font: 700 14px var(--head); letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); margin: 0 0 8px; }
+.tirai h2 { color: #fff; font-size: clamp(30px, 8vw, 42px); margin-bottom: 14px; }
+.tirai-hari { font: 600 22px var(--head); color: rgba(255,255,255,.85); margin-bottom: 14px; }
+.tirai-hari b { font: 700 clamp(64px, 20vw, 96px)/1 var(--head); color: var(--gold); vertical-align: -.06em; margin-right: 6px; text-shadow: 0 6px 24px rgba(0,0,0,.4); }
+.tirai p { color: rgba(255,255,255,.78); line-height: 1.55; margin: 0 0 20px; }
+.tirai-aksi { display: grid; gap: 10px; justify-items: center; }
+@media (prefers-reduced-motion: reduce) { .tirai, .tirai-ic { animation: none; } }

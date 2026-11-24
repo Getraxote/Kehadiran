@@ -31,7 +31,7 @@ window.TKReveal = (function () {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(t);
   }
-  var sfx = {
+  var sintetis = {
     whoosh: function () { noise(0, 0.35, 0.22, 400, 3200); },
     ting: function () { tone(1318, 0, 0.5, 'sine', 0.2); tone(1760, 0.08, 0.6, 'sine', 0.13); },
     drum: function (sec) {
@@ -44,6 +44,42 @@ window.TKReveal = (function () {
       n.forEach(function (f) { tone(f, 0.55, 1.2, 'sawtooth', 0.08); });
     }
   };
+
+  /* Berkas audio sendiri (opsional, diatur di js/config.js → audio). Yang dikosongkan memakai suara sintetis. */
+  var A = (window.TK_CONFIG && window.TK_CONFIG.audio) || {}, musik = null, fadeT = 0;
+  function putarBerkas(url, vol) {
+    if (muted) return;
+    try { var a = new Audio(url); a.volume = vol; var pr = a.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) { /* abaikan */ }
+  }
+  var sfx = {};
+  ['whoosh', 'ting', 'drum', 'fanfare'].forEach(function (n) {
+    sfx[n] = function (arg) {
+      var f = A.sfx && A.sfx[n];
+      if (f) putarBerkas(f, A.volumeSfx != null ? A.volumeSfx : 0.9); else sintetis[n](arg);
+    };
+  });
+  function fade(a, ke, ms, selesai) {
+    clearInterval(fadeT);
+    var dari = a.volume, t0 = Date.now();
+    fadeT = setInterval(function () {
+      var k = Math.min(1, (Date.now() - t0) / ms);
+      try { a.volume = Math.max(0, Math.min(1, dari + (ke - dari) * k)); } catch (e) { /* abaikan */ }
+      if (k >= 1) { clearInterval(fadeT); if (selesai) selesai(); }
+    }, 50);
+  }
+  function mulaiMusik() {
+    if (!A.musik || musik) return;
+    try {
+      musik = new Audio(A.musik); musik.loop = true; musik.volume = 0; musik.muted = muted;
+      var pr = musik.play(); if (pr && pr.catch) pr.catch(function () {});
+      fade(musik, A.volumeMusik != null ? A.volumeMusik : 0.4, 2000);
+    } catch (e) { musik = null; }
+  }
+  function henti() {
+    if (!musik) return;
+    var m = musik; musik = null;
+    fade(m, 0, 900, function () { try { m.pause(); } catch (e) { /* abaikan */ } });
+  }
 
   /* ---------- konfeti & angka ---------- */
   function ukur() { if (cv) { cv.width = window.innerWidth; cv.height = window.innerHeight; } }
@@ -93,7 +129,7 @@ window.TKReveal = (function () {
     if (s.hadir > 0) {
       S.push({
         html: '<p class="rv-eyebrow">Kamu</p><h2 class="rv-h2">Kamu hadir</h2><div class="rv-big"><b data-to="' + s.hadir + '">0</b></div><p class="rv-p">kali bulan ini' +
-          (s.jam > 0 ? ', total sekitar <b data-to="' + s.jam + '" data-dec="1">0</b> jam bersama kami.' : '.') + '</p>',
+          '.' + '</p>',
         masuk: angkaOtomatis
       });
       if (s.kegiatan) S.push({ html: '<p class="rv-eyebrow">Andalanmu</p><h2 class="rv-h2">Kegiatan yang paling sering kamu lakukan</h2><div class="rv-kegiatan">' + E(s.kegiatan) + '</div>', masuk: function () { sfx.ting(); } });
@@ -122,8 +158,9 @@ window.TKReveal = (function () {
           return x ? '<div class="rv-pod p' + r + ' hide' + (x.saya ? ' me' : '') + '" data-r="' + r + '"><span class="rk">' + r + '</span>' + x.av + '<div class="nm">' + E(x.nama) + '</div><div class="pt">' + x.poin + '</div><small>poin</small></div>' : '<div class="rv-pod none"></div>';
         }).join('') + '</div>',
         masuk: function (el, selesai) {
-          var urut = d.podium.map(function (x, i) { return i + 1; }).reverse(), t = 2300;
-          sfx.drum(2.2);
+          var urut = d.podium.map(function (x, i) { return i + 1; }).reverse(), t = Math.round((A.drumDetik || 2.2) * 1000) + 100;
+          var dd = A.drumDetik || 2.2;
+          sfx.drum(dd);
           urut.forEach(function (r) {
             tunda(function () {
               var p = el.querySelector('.rv-pod[data-r="' + r + '"]');
@@ -206,7 +243,7 @@ window.TKReveal = (function () {
   }
   function lanjut() {
     if (tombol.disabled) return;
-    if (idx === 0) audio();
+    if (idx === 0) { audio(); mulaiMusik(); }
     if (idx >= slides.length - 1) tutup(); else tampil(idx + 1);
   }
   function tutup() {
@@ -217,6 +254,7 @@ window.TKReveal = (function () {
     window.removeEventListener('resize', ukur);
     if (root) root.remove();
     root = null; document.body.classList.remove('gated');
+    henti();
     if (ctx) { try { ctx.close(); } catch (e) { /* abaikan */ } ctx = null; }
     if (onTutup) onTutup();
   }
@@ -243,7 +281,7 @@ window.TKReveal = (function () {
       var k = b.dataset.rv;
       if (k === 'lanjut') lanjut();
       else if (k === 'lewati') tutup();
-      else if (k === 'suara') { muted = !muted; b.textContent = 'Suara: ' + (muted ? 'mati' : 'nyala'); b.setAttribute('aria-pressed', String(muted)); }
+      else if (k === 'suara') { muted = !muted; if (musik) musik.muted = muted; b.textContent = 'Suara: ' + (muted ? 'mati' : 'nyala'); b.setAttribute('aria-pressed', String(muted)); }
       else if (k === 'simpan') simpanGambar();
     });
     document.addEventListener('keydown', tombolKeyboard, true);

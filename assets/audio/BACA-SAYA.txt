@@ -1,0 +1,1 @@
+Taruh berkas musik/sfx di folder ini, lalu isi namanya di js/config.js bagian audio.

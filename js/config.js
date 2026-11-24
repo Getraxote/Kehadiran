@@ -14,7 +14,7 @@ window.TK_CONFIG = {
   configAdalahSumber: true,
 
   // Email Google pengurus. Harus sama persis dengan yang ada di firestore.rules.
-  adminEmails: ["getramaz@gmail.com"],
+  adminEmails: ["getramaz@gmail.com", "ohd8094@gmail.com"],
 
   // Kunci Firebase BUKAN rahasia; yang melindungi data adalah firestore.rules.
   firebase: {
@@ -24,21 +24,35 @@ window.TK_CONFIG = {
     appId: "1:905083607570:web:926866c921e28d9d6916cb"
   },
 
+  /* Audio untuk layar kejutan bulanan. Taruh berkas di folder assets/audio/ lalu isi namanya di bawah.
+     Yang dikosongkan ("") memakai suara sintetis bawaan. Format disarankan .mp3 (kecil, jalan di semua HP).
+     Pakai musik/sfx yang kamu punya hak pakainya (buatan sendiri atau berlisensi bebas). */
+  audio: {
+    musik: "",                 // contoh: "assets/audio/musik.mp3" (diputar berulang dengan fade in/out)
+    volumeMusik: 0.4,          // 0 sampai 1
+    sfx: {
+      whoosh: "assets/audio/whoosh.mp3",              // pergantian slide, contoh: "assets/audio/whoosh.mp3"
+      ting: "assets/audio/ting.mp3",                // lencana / angka muncul
+      drum: "assets/audio/drum.mp3",                // gulungan drum sebelum podium
+      fanfare: "assets/audio/fanfare.mp3"              // juara 1 dan penutup
+    },
+    drumDetik: 7,            
+    volumeSfx: 0.9
+  },
+
   defaults: {
     orgName: "Yayasan Al-Kahfi",
     appName: "Tanda Kehadiran",
 
-    lokasiNama: "Polowijen",
-    lat: -7.932497637784255,
-    lng: 112.6397824588299,
-    radius: 50,                // meter
-
-    kategori: ["Nongkrong / Diskusi", "Persiapan Acara", "Rapat", "Eksekusi Proyek"],
-
+    lokasi: [
+      { nama: "Sekre Polowijen", lat: -7.932497637784255, lng: 112.6397824588299, radius: 50 }, 
+      { nama: "Sekre Rupat", lat: -7.992799703413493, lng: 112.62639134375375, radius: 50 }
+    ],
+    kategori: ["Nongkrong dan diskusi", "Persiapan acara", "Rapat", "Kontribusi", "Kajian SM/MT", "Kesekretariatan", "Nge-Plan bareng", "READ", "Literasi (Baca, Pinjam, KP Buku Perpustakaan/ Buletin Ulbab)", "Belajar Kelompok/ Mengerjakan PR Sekolah", "Peran Organisasi"],
     qrAktif: true,
     qrToken: "",               // kosong = dibuat pengurus di menu Pengurus; isi teks acak bila ingin dikunci di sini
 
-    autoPulangJam: 8,          // yang lupa "Pulang" hilang dari "Siapa di Sini" setelah sekian jam
+    autoPulangJam: 8,          // nama tampil di "Siapa di Sini" selama sekian jam sejak kegiatan terakhirnya
     poin: { hadir: 10, catatan: 5, streakBonus: 5, streakMaks: 4 },
     riwayatHari: 180           // berapa hari ke belakang yang dimuat (menjaga kuota baca Firebase kecil)
   }

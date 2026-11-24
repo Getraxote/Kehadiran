@@ -1,7 +1,7 @@
 /* Service worker Tanda Kehadiran.
    Menyimpan berkas aplikasi di cache supaya bisa dibuka lagi tanpa internet.
    Setelah mengubah berkas aplikasi, naikkan VERSION agar cache lama diganti. */
-const VERSION = 'kehadiran-v6';
+const VERSION = 'kehadiran-v7';
 const EXTERNAL = 'kehadiran-external';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
@@ -31,6 +31,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  if (req.destination === 'audio' || req.destination === 'video' || req.headers.has('range')) return;   // media: biar browser yang mengurus
 
   // Berkas aplikasi sendiri: jaringan dulu (pembaruan cepat sampai), cache bila offline.
   if (url.origin === self.location.origin) {

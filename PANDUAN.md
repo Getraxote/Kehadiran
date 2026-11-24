@@ -57,7 +57,10 @@ Pengurus = akun Google yang emailnya ada di `adminEmails` (config.js) dan di `fi
 - **Satu catatan per orang per hari.** Bisa memperbarui kegiatan, menekan Pulang, dan Masuk Lagi. Yang lupa Pulang hilang dari "Siapa di Sini" setelah 8 jam (`autoPulangJam`).
 - **Poin** dihitung dari data: hadir +10, catatan kontribusi +5, bonus streak pekan beruntun (angka di `config.js`).
 - **Rekap:** per tanggal, per anggota, tabel rinci. Pengurus mengunduh `.xlsx` (3 lembar) atau `.csv` (pemisah titik koma) dan menghapus catatan yang salah.
-- **Rahasia sampai tanggal 1:** untuk anggota, halaman Rekap dan papan Apresiasi hanya menampilkan data sampai akhir bulan lalu. Hasil bulan berjalan baru terbuka saat bulan berganti. Pengurus tetap bisa melihat semuanya kapan saja.
+- **Musik dan sfx sendiri:** taruh berkas (disarankan `.mp3`) di `assets/audio/`, lalu isi namanya di `js/config.js` bagian `audio` (`musik`, dan `sfx` untuk `whoosh`, `ting`, `drum`, `fanfare`). Musik diputar berulang dengan fade in/out mulai saat anggota menekan "Mulai"; tombol "Suara" membisukan semuanya. Yang dikosongkan memakai suara sintetis bawaan. Bila memakai berkas drum sendiri, isi `drumDetik` sesuai lamanya supaya podium muncul tepat setelahnya. Pakai audio buatan sendiri atau berlisensi bebas, dan usahakan ukuran musik di bawah 2 MB agar cepat dimuat di HP.
+- **Beberapa lokasi:** di `js/config.js` bagian `lokasi` berisi daftar `{ nama, lat, lng, radius }`. Tambahkan satu baris untuk lokasi kedua (contoh sudah ada, dikomentari). Tombol hadir aktif bila anggota berada di radius salah satu lokasi, dan nama lokasinya ikut tercatat (kolom Lokasi di Rekap dan Excel). **Setelah menambah lokasi kedua, salin ulang `firestore.rules` ke Firebase Console lalu Publish**, karena aturan baru mengizinkan kolom `lokasi`.
+- **Tanpa jam pulang:** tidak ada tombol Pulang. Anggota tampil di "Siapa di Sini" selama sekian jam sejak kegiatan terakhirnya (Pengurus → Poin & pengaturan).
+- **Rahasia sampai tanggal 1:** anggota yang membuka Rekap atau Apresiasi disambut layar gelap bertuliskan tanggal pembukaan dan hitung mundur; tombolnya membuka hasil bulan lalu. untuk anggota, halaman Rekap dan papan Apresiasi hanya menampilkan data sampai akhir bulan lalu. Hasil bulan berjalan baru terbuka saat bulan berganti. Pengurus tetap bisa melihat semuanya kapan saja.
 - **Kejutan bulanan:** saat anggota pertama kali membuka aplikasi di bulan baru, muncul layar penuh berisi animasi, suara (dibuat langsung oleh browser, tanpa berkas audio), konfeti, lencana baru, podium, dan penghargaan, dengan tombol simpan kartu sebagai gambar. Muncul sekali per anggota per bulan (ditandai di browser anggota) dan bisa diputar ulang dari halaman Rekap/Apresiasi. Pengurus dapat memratinjau dari Pengurus → Data & ekspor.
 - Bila anggota mengganti nama panggilan, catatan lama di rekap tetap memakai nama saat itu.
 
@@ -74,7 +77,7 @@ Pengurus = akun Google yang emailnya ada di `adminEmails` (config.js) dan di `fi
 
 ## Setelah mengubah berkas
 
-Naikkan angka `VERSION` di `sw.js` (`kehadiran-v5` → `kehadiran-v6`, dan angka `?v=` di `index.html`) supaya cache lama di HP anggota diganti.
+Naikkan angka `VERSION` di `sw.js` (`kehadiran-v7` → `kehadiran-v8`, dan angka `?v=` di `index.html`) supaya cache lama di HP anggota diganti.
 
 ## Mencoba tanpa Firebase
 

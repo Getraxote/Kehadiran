@@ -26,8 +26,15 @@ window.TKStore = (function () {
     var s = Object.assign({}, D, raw || {});
     s.poin = Object.assign({}, D.poin, (raw && raw.poin) || {});
     if (!Array.isArray(s.kategori) || !s.kategori.length) s.kategori = D.kategori.slice();
+    var daftar = [];
+    if (CFG.configAdalahSumber && Array.isArray(D.lokasi) && D.lokasi.length) daftar = D.lokasi;
+    else daftar = [{ nama: s.lokasiNama || D.lokasiNama, lat: s.lat != null ? s.lat : D.lat, lng: s.lng != null ? s.lng : D.lng, radius: s.radius || D.radius }];
+    s.lokasi = daftar.map(function (l, i) {
+      return { nama: String(l.nama || ('Lokasi ' + (i + 1))).slice(0, 60), lat: typeof l.lat === 'number' ? l.lat : null, lng: typeof l.lng === 'number' ? l.lng : null, radius: Math.max(10, Number(l.radius) || 50) };
+    }).filter(function (l) { return l.lat != null && l.lng != null; });
+    if (!s.lokasi.length) s.lokasi = [{ nama: (daftar[0] && daftar[0].nama) || 'Basecamp', lat: null, lng: null, radius: 50 }];
+    s.lokasiNama = s.lokasi[0].nama; s.lat = s.lokasi[0].lat; s.lng = s.lokasi[0].lng; s.radius = s.lokasi[0].radius;
     if (CFG.configAdalahSumber) {   // nilai di js/config.js menang atas apa pun yang tersimpan di database
-      ['lokasiNama', 'lat', 'lng', 'radius'].forEach(function (k) { if (D[k] != null) s[k] = D[k]; });
       if (D.kategori && D.kategori.length) s.kategori = D.kategori.slice();
       if (D.qrToken) s.qrToken = D.qrToken;
     }
